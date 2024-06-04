@@ -1,1 +1,3 @@
-"hello" "world" 5.6 1 1.23.4
+int a = "chode"
+35.45.1 "skib" gyatt 5.2.53
+45 2.64.2

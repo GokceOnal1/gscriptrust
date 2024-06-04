@@ -20,7 +20,7 @@ impl<'a> Lexer<'a> {
             eprintln!("Problem initiating lexer: {e}");
             std::process::exit(1);
         });
-        Lexer { filename, tokens : Vec::new(), source : s.chars().collect(), sourcelines : s.split('\n').map(|s| s.to_string()).collect(),  curri : 0, currline : 1, currchar : 0, errorstack, }
+        Lexer { filename, tokens : Vec::new(), source : s.chars().collect(), sourcelines : s.split('\n').map(|s| s.to_string()).collect(),  curri : 0, currline : 1, currchar : 1, errorstack, }
     }
     pub fn lex(&mut self) {
         while let Some(&c) = self.source.get(self.curri) {
@@ -40,7 +40,10 @@ impl<'a> Lexer<'a> {
                 self.collect_num();
                 continue;
             }
-            //println!("CHAR: {} - INDEX: {}", c.to_string().red(), self.curri.to_string().blue());
+            if c.is_ascii_alphabetic() || c == '_' {
+                self.collect_id();
+                continue;
+            }
             self.curri += 1;
             self.currchar += 1;
         }
@@ -88,6 +91,7 @@ impl<'a> Lexer<'a> {
         }
     }
     fn collect_num(&mut self) {
+        let starting_c = self.currchar;
         let mut n : Vec<char> = Vec::new();
         let mut dot = false;
         while let Some(&c) = self.source.get(self.curri) {
@@ -103,23 +107,37 @@ impl<'a> Lexer<'a> {
         }
         let snum : String = n.iter().collect();
                 if dot {
-                    let num : f32 = snum.parse().unwrap_or_else( |e| {
+                    let num : f32 = snum.parse().unwrap_or_else( |_| {
                         self.errorstack.errors.push(
-                            GError::new(ETypes::SyntaxError, "Invalid syntax for creating a float", self.filename.clone(), self.sourcelines.get(self.currline-1).unwrap().to_string(), self.currline, self.currchar )
+                            GError::new(ETypes::SyntaxError, "Invalid syntax for creating a float", self.filename.clone(), self.sourcelines.get(self.currline-1).unwrap().to_string(), self.currline, starting_c, self.currchar )
                         );
                         return 0.0;
                     });
                     self.tokens.push(Token::FLOAT(num));
                     return;
                 } else {
-                    let num : i32 = snum.parse().unwrap_or_else( |e| {
-                        println!("Invalid syntax for creating int: {e}");
+                    let num : i32 = snum.parse().unwrap_or_else( |_| {
+                        self.errorstack.errors.push(
+                            GError::new(ETypes::SyntaxError, "Invalid syntax for creating an int", self.filename.clone(), self.sourcelines.get(self.currline-1).unwrap().to_string(), self.currline, starting_c, self.currchar )
+                        );
                         return 0;
                     });
                     self.tokens.push(Token::INT(num));
                     return;
                 }
         
+    }
+    fn collect_id(&mut self) {
+        let mut id : Vec<char> = Vec::new();
+        while let Some(&c) = self.source.get(self.curri) {
+            if !c.is_ascii_alphabetic() && c != '_' {
+                break;
+            }
+            id.push(c);
+            self.currchar += 1;
+            self.curri += 1;
+        }
+        self.tokens.push(Token::ID(id.iter().collect()));
     }
     
 }

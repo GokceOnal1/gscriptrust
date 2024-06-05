@@ -1,4 +1,4 @@
-use super::token::Token;
+use super::token::*;
 use std::fs;
 use crate::errors::error::*;
 
@@ -44,6 +44,13 @@ impl<'a> Lexer<'a> {
                 self.collect_id();
                 continue;
             }
+            match c {
+                '=' => { self.collect_eq(); continue; }
+                '<' => { self.collect_lt(); continue; }
+                '>' => { self.collect_gt(); continue; }
+                '!' => { self.collect_ne(); continue; }
+                _ => {  }
+            }
             self.curri += 1;
             self.currchar += 1;
         }
@@ -75,6 +82,7 @@ impl<'a> Lexer<'a> {
         }
     }
     fn collect_str(&mut self) {
+        let starting_c = self.currchar;
         self.curri += 1;
         self.currchar += 1;
         let mut s : Vec<char> = Vec::new();
@@ -82,7 +90,7 @@ impl<'a> Lexer<'a> {
             if c == '"' {
                 self.curri += 1;
                 self.currchar += 1;
-                self.tokens.push(Token::STRING(s.iter().collect()));
+                self.tokens.push(Token::new(TokenType::STRING(s.iter().collect()), self.currline, starting_c, self.currchar));
                 return;
             }
             s.push(c);
@@ -113,7 +121,7 @@ impl<'a> Lexer<'a> {
                         );
                         return 0.0;
                     });
-                    self.tokens.push(Token::FLOAT(num));
+                    self.tokens.push(Token::new(TokenType::FLOAT(num), self.currline, starting_c, self.currchar));
                     return;
                 } else {
                     let num : i32 = snum.parse().unwrap_or_else( |_| {
@@ -122,22 +130,76 @@ impl<'a> Lexer<'a> {
                         );
                         return 0;
                     });
-                    self.tokens.push(Token::INT(num));
+                    self.tokens.push(Token::new(TokenType::INT(num), self.currline, starting_c, self.currchar));
                     return;
                 }
         
     }
     fn collect_id(&mut self) {
+        let starting_c = self.currchar;
         let mut id : Vec<char> = Vec::new();
-        while let Some(&c) = self.source.get(self.curri) {
-            if !c.is_ascii_alphabetic() && c != '_' {
-                break;
+        let mut first = true;
+        while let Some(&c) = self.source.get(self.curri) { 
+            if first {
+                if !c.is_ascii_alphabetic() && c != '_' {
+                    break;
+                }
+            } else {
+                if !c.is_ascii_alphanumeric() && c != '_' {
+                    break;
+                }
             }
+            
             id.push(c);
             self.currchar += 1;
             self.curri += 1;
+            first = false;
         }
-        self.tokens.push(Token::ID(id.iter().collect()));
+        self.tokens.push(Token::new(TokenType::ID(id.iter().collect()), self.currline, starting_c, self.currchar));
+    }
+    fn collect_eq(&mut self) {
+        self.curri += 1;
+        self.currchar += 1;
+        if self.curri != self.source.len() && self.source.get(self.curri).unwrap() == &'=' {
+            self.tokens.push(Token::new(TokenType::DEQL, self.currline, self.currchar-1, self.currchar));
+            self.curri += 1;
+            self.currchar += 1;
+            return;
+        }
+        self.tokens.push(Token::new(TokenType::EQL, self.currline, self.currchar-1, self.currchar));
+    }
+    fn collect_lt(&mut self) {
+        self.curri += 1;
+        self.currchar += 1;
+        if self.curri != self.source.len() && self.source.get(self.curri).unwrap() == &'=' {
+            self.tokens.push(Token::new(TokenType::LTE, self.currline, self.currchar-1, self.currchar));
+            self.curri += 1;
+            self.currchar += 1;
+            return;
+        }
+        self.tokens.push(Token::new(TokenType::LT, self.currline, self.currchar-1, self.currchar));
+    }
+    fn collect_gt(&mut self) {
+        self.curri += 1;
+        self.currchar += 1;
+        if self.curri != self.source.len() && self.source.get(self.curri).unwrap() == &'=' {
+            self.tokens.push(Token::new(TokenType::GTE, self.currline, self.currchar-1, self.currchar));
+            self.curri += 1;
+            self.currchar += 1;
+            return;
+        }
+        self.tokens.push(Token::new(TokenType::GT, self.currline, self.currchar-1, self.currchar));
+    }
+    fn collect_ne(&mut self) {
+        self.curri += 1;
+        self.currchar += 1;
+        if self.curri != self.source.len() && self.source.get(self.curri).unwrap() == &'=' {
+            self.tokens.push(Token::new(TokenType::NEQ, self.currline, self.currchar-1, self.currchar));
+            self.curri += 1;
+            self.currchar += 1;
+            return;
+        }
+        self.tokens.push(Token::new(TokenType::NOT, self.currline, self.currchar-1, self.currchar));
     }
     
 }

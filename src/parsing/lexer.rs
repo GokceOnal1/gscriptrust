@@ -49,7 +49,24 @@ impl<'a> Lexer<'a> {
                 '<' => { self.collect_lt(); continue; }
                 '>' => { self.collect_gt(); continue; }
                 '!' => { self.collect_ne(); continue; }
-                _ => {  }
+                '&' => { self.tokens.push(Token::new(TokenType::AND, self.currline, self.currchar, self.currchar+1));}
+                '%' => { self.tokens.push(Token::new(TokenType::MOD, self.currline, self.currchar, self.currchar+1));}
+                '|' => { self.tokens.push(Token::new(TokenType::OR, self.currline, self.currchar, self.currchar+1));}
+                ';' => { self.tokens.push(Token::new(TokenType::SEMI, self.currline, self.currchar, self.currchar+1));}
+                ':' => { self.tokens.push(Token::new(TokenType::CLN, self.currline, self.currchar, self.currchar+1));}
+                '(' => { self.tokens.push(Token::new(TokenType::LPR, self.currline, self.currchar, self.currchar+1));}
+                ')' => { self.tokens.push(Token::new(TokenType::RPR, self.currline, self.currchar, self.currchar+1));}
+                ',' => { self.tokens.push(Token::new(TokenType::CMA, self.currline, self.currchar, self.currchar+1));}
+                '{' => { self.tokens.push(Token::new(TokenType::LBR, self.currline, self.currchar, self.currchar+1));}
+                '}' => { self.tokens.push(Token::new(TokenType::RBR, self.currline, self.currchar, self.currchar+1));}
+                '[' => { self.tokens.push(Token::new(TokenType::LSQB, self.currline, self.currchar, self.currchar+1));}
+                ']' => { self.tokens.push(Token::new(TokenType::RSQB, self.currline, self.currchar, self.currchar+1));}
+                '+' => { self.tokens.push(Token::new(TokenType::PLS, self.currline, self.currchar, self.currchar+1));}
+                '-' => { self.tokens.push(Token::new(TokenType::MIN, self.currline, self.currchar, self.currchar+1));}
+                '*' => { self.tokens.push(Token::new(TokenType::MUL, self.currline, self.currchar, self.currchar+1));}
+                '/' => { self.tokens.push(Token::new(TokenType::DIV, self.currline, self.currchar, self.currchar+1));}
+                '.' => { self.tokens.push(Token::new(TokenType::DOT, self.currline, self.currchar, self.currchar+1));}
+                _ => { self.errorstack.errors.push(GError::new(ETypes::TokenError, "Unrecognized token", self.filename.clone(), self.sourcelines.get(self.currline-1).unwrap().to_string(), self.currline, self.currchar, self.currchar+1));}
             }
             self.curri += 1;
             self.currchar += 1;

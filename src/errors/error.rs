@@ -6,6 +6,7 @@ pub enum ETypes {
     SyntaxError,
     DivideByZeroError,
     FileError,
+    TokenError,
 }
 impl std::fmt::Display for ETypes {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -13,6 +14,7 @@ impl std::fmt::Display for ETypes {
             Self::SyntaxError => write!(f, "SyntaxError"),
             Self::DivideByZeroError => write!(f, "DivideByZeroError"),
             Self::FileError => write!(f, "FileError"),
+            Self::TokenError => write!(f, "TokenError"),
         }
     }
 }

@@ -1,3 +1,6 @@
+use crate::errors::error::*;
+
+#[derive(PartialEq)]
 pub enum TokenType {
     INT(i32),
     FLOAT(f32),
@@ -30,15 +33,13 @@ pub enum TokenType {
     DOT
 }
 pub struct Token {
-    kind : TokenType,
-    line : usize,
-    col : usize,
-    col_end : usize,
+    pub kind : TokenType,
+    pub einfo : ErrorInfo,
 }
 impl Token {
-    pub fn new(kind : TokenType, line : usize, col : usize, col_end : usize) -> Token {
+    pub fn new(kind : TokenType, einfo : ErrorInfo) -> Token {
         Token {
-            kind, line, col, col_end,
+            kind, einfo
         }
     }
     pub fn print_toks(toks : &Vec<Token>) {

@@ -49,23 +49,23 @@ impl<'a> Lexer<'a> {
                 '<' => { self.collect_lt(); continue; }
                 '>' => { self.collect_gt(); continue; }
                 '!' => { self.collect_ne(); continue; }
-                '&' => { self.tokens.push(Token::new(TokenType::AND, self.currline, self.currchar, self.currchar+1));}
-                '%' => { self.tokens.push(Token::new(TokenType::MOD, self.currline, self.currchar, self.currchar+1));}
-                '|' => { self.tokens.push(Token::new(TokenType::OR, self.currline, self.currchar, self.currchar+1));}
-                ';' => { self.tokens.push(Token::new(TokenType::SEMI, self.currline, self.currchar, self.currchar+1));}
-                ':' => { self.tokens.push(Token::new(TokenType::CLN, self.currline, self.currchar, self.currchar+1));}
-                '(' => { self.tokens.push(Token::new(TokenType::LPR, self.currline, self.currchar, self.currchar+1));}
-                ')' => { self.tokens.push(Token::new(TokenType::RPR, self.currline, self.currchar, self.currchar+1));}
-                ',' => { self.tokens.push(Token::new(TokenType::CMA, self.currline, self.currchar, self.currchar+1));}
-                '{' => { self.tokens.push(Token::new(TokenType::LBR, self.currline, self.currchar, self.currchar+1));}
-                '}' => { self.tokens.push(Token::new(TokenType::RBR, self.currline, self.currchar, self.currchar+1));}
-                '[' => { self.tokens.push(Token::new(TokenType::LSQB, self.currline, self.currchar, self.currchar+1));}
-                ']' => { self.tokens.push(Token::new(TokenType::RSQB, self.currline, self.currchar, self.currchar+1));}
-                '+' => { self.tokens.push(Token::new(TokenType::PLS, self.currline, self.currchar, self.currchar+1));}
-                '-' => { self.tokens.push(Token::new(TokenType::MIN, self.currline, self.currchar, self.currchar+1));}
-                '*' => { self.tokens.push(Token::new(TokenType::MUL, self.currline, self.currchar, self.currchar+1));}
-                '/' => { self.tokens.push(Token::new(TokenType::DIV, self.currline, self.currchar, self.currchar+1));}
-                '.' => { self.tokens.push(Token::new(TokenType::DOT, self.currline, self.currchar, self.currchar+1));}
+                '&' => { self.tokens.push(Token::new(TokenType::AND, ErrorInfo::new(self.filename.clone(), self.sourcelines.get(self.currline-1).unwrap().to_string(), self.currline, self.currchar, self.currchar+1)));}
+                '%' => { self.tokens.push(Token::new(TokenType::MOD, ErrorInfo::new(self.filename.clone(), self.sourcelines.get(self.currline-1).unwrap().to_string(), self.currline, self.currchar, self.currchar+1)));}
+                '|' => { self.tokens.push(Token::new(TokenType::OR, ErrorInfo::new(self.filename.clone(), self.sourcelines.get(self.currline-1).unwrap().to_string(), self.currline, self.currchar, self.currchar+1)));}
+                ';' => { self.tokens.push(Token::new(TokenType::SEMI, ErrorInfo::new(self.filename.clone(), self.sourcelines.get(self.currline-1).unwrap().to_string(), self.currline, self.currchar, self.currchar+1)));}
+                ':' => { self.tokens.push(Token::new(TokenType::CLN, ErrorInfo::new(self.filename.clone(), self.sourcelines.get(self.currline-1).unwrap().to_string(), self.currline, self.currchar, self.currchar+1)));}
+                '(' => { self.tokens.push(Token::new(TokenType::LPR, ErrorInfo::new(self.filename.clone(), self.sourcelines.get(self.currline-1).unwrap().to_string(), self.currline, self.currchar, self.currchar+1)));}
+                ')' => { self.tokens.push(Token::new(TokenType::RPR, ErrorInfo::new(self.filename.clone(), self.sourcelines.get(self.currline-1).unwrap().to_string(), self.currline, self.currchar, self.currchar+1)));}
+                ',' => { self.tokens.push(Token::new(TokenType::CMA, ErrorInfo::new(self.filename.clone(), self.sourcelines.get(self.currline-1).unwrap().to_string(), self.currline, self.currchar, self.currchar+1)));}
+                '{' => { self.tokens.push(Token::new(TokenType::LBR, ErrorInfo::new(self.filename.clone(), self.sourcelines.get(self.currline-1).unwrap().to_string(), self.currline, self.currchar, self.currchar+1)));}
+                '}' => { self.tokens.push(Token::new(TokenType::RBR, ErrorInfo::new(self.filename.clone(), self.sourcelines.get(self.currline-1).unwrap().to_string(), self.currline, self.currchar, self.currchar+1)));}
+                '[' => { self.tokens.push(Token::new(TokenType::LSQB, ErrorInfo::new(self.filename.clone(), self.sourcelines.get(self.currline-1).unwrap().to_string(), self.currline, self.currchar, self.currchar+1)));}
+                ']' => { self.tokens.push(Token::new(TokenType::RSQB, ErrorInfo::new(self.filename.clone(), self.sourcelines.get(self.currline-1).unwrap().to_string(), self.currline, self.currchar, self.currchar+1)));}
+                '+' => { self.tokens.push(Token::new(TokenType::PLS, ErrorInfo::new(self.filename.clone(), self.sourcelines.get(self.currline-1).unwrap().to_string(), self.currline, self.currchar, self.currchar+1)));}
+                '-' => { self.tokens.push(Token::new(TokenType::MIN, ErrorInfo::new(self.filename.clone(), self.sourcelines.get(self.currline-1).unwrap().to_string(), self.currline, self.currchar, self.currchar+1)));}
+                '*' => { self.tokens.push(Token::new(TokenType::MUL, ErrorInfo::new(self.filename.clone(), self.sourcelines.get(self.currline-1).unwrap().to_string(), self.currline, self.currchar, self.currchar+1)));}
+                '/' => { self.tokens.push(Token::new(TokenType::DIV, ErrorInfo::new(self.filename.clone(), self.sourcelines.get(self.currline-1).unwrap().to_string(), self.currline, self.currchar, self.currchar+1)));}
+                '.' => { self.tokens.push(Token::new(TokenType::DOT, ErrorInfo::new(self.filename.clone(), self.sourcelines.get(self.currline-1).unwrap().to_string(), self.currline, self.currchar, self.currchar+1)));}
                 _ => { self.errorstack.errors.push(GError::new(ETypes::TokenError, "Unrecognized token", self.filename.clone(), self.sourcelines.get(self.currline-1).unwrap().to_string(), self.currline, self.currchar, self.currchar+1));}
             }
             self.curri += 1;
@@ -107,7 +107,7 @@ impl<'a> Lexer<'a> {
             if c == '"' {
                 self.curri += 1;
                 self.currchar += 1;
-                self.tokens.push(Token::new(TokenType::STRING(s.iter().collect()), self.currline, starting_c, self.currchar));
+                self.tokens.push(Token::new(TokenType::STRING(s.iter().collect()), ErrorInfo::new(self.filename.clone(), self.sourcelines.get(self.currline-1).unwrap().to_string(), self.currline, starting_c, self.currchar+1)));
                 return;
             }
             s.push(c);
@@ -138,7 +138,7 @@ impl<'a> Lexer<'a> {
                         );
                         return 0.0;
                     });
-                    self.tokens.push(Token::new(TokenType::FLOAT(num), self.currline, starting_c, self.currchar));
+                    self.tokens.push(Token::new(TokenType::FLOAT(num), ErrorInfo::new(self.filename.clone(), self.sourcelines.get(self.currline-1).unwrap().to_string(), self.currline, starting_c, self.currchar)));
                     return;
                 } else {
                     let num : i32 = snum.parse().unwrap_or_else( |_| {
@@ -147,7 +147,7 @@ impl<'a> Lexer<'a> {
                         );
                         return 0;
                     });
-                    self.tokens.push(Token::new(TokenType::INT(num), self.currline, starting_c, self.currchar));
+                    self.tokens.push(Token::new(TokenType::INT(num), ErrorInfo::new(self.filename.clone(), self.sourcelines.get(self.currline-1).unwrap().to_string(), self.currline, starting_c, self.currchar)));
                     return;
                 }
         
@@ -172,51 +172,51 @@ impl<'a> Lexer<'a> {
             self.curri += 1;
             first = false;
         }
-        self.tokens.push(Token::new(TokenType::ID(id.iter().collect()), self.currline, starting_c, self.currchar));
+        self.tokens.push(Token::new(TokenType::ID(id.iter().collect()), ErrorInfo::new(self.filename.clone(), self.sourcelines.get(self.currline-1).unwrap().to_string(), self.currline, starting_c, self.currchar)));
     }
     fn collect_eq(&mut self) {
         self.curri += 1;
         self.currchar += 1;
         if self.curri != self.source.len() && self.source.get(self.curri).unwrap() == &'=' {
-            self.tokens.push(Token::new(TokenType::DEQL, self.currline, self.currchar-1, self.currchar));
+            self.tokens.push(Token::new(TokenType::DEQL, ErrorInfo::new(self.filename.clone(), self.sourcelines.get(self.currline-1).unwrap().to_string(), self.currline, self.currchar-1, self.currchar)));
             self.curri += 1;
             self.currchar += 1;
             return;
         }
-        self.tokens.push(Token::new(TokenType::EQL, self.currline, self.currchar-1, self.currchar));
+        self.tokens.push(Token::new(TokenType::EQL, ErrorInfo::new(self.filename.clone(), self.sourcelines.get(self.currline-1).unwrap().to_string(), self.currline, self.currchar-1, self.currchar)));
     }
     fn collect_lt(&mut self) {
         self.curri += 1;
         self.currchar += 1;
         if self.curri != self.source.len() && self.source.get(self.curri).unwrap() == &'=' {
-            self.tokens.push(Token::new(TokenType::LTE, self.currline, self.currchar-1, self.currchar));
+            self.tokens.push(Token::new(TokenType::LTE, ErrorInfo::new(self.filename.clone(), self.sourcelines.get(self.currline-1).unwrap().to_string(), self.currline, self.currchar-1, self.currchar)));
             self.curri += 1;
             self.currchar += 1;
             return;
         }
-        self.tokens.push(Token::new(TokenType::LT, self.currline, self.currchar-1, self.currchar));
+        self.tokens.push(Token::new(TokenType::LT, ErrorInfo::new(self.filename.clone(), self.sourcelines.get(self.currline-1).unwrap().to_string(), self.currline, self.currchar-1, self.currchar)));
     }
     fn collect_gt(&mut self) {
         self.curri += 1;
         self.currchar += 1;
         if self.curri != self.source.len() && self.source.get(self.curri).unwrap() == &'=' {
-            self.tokens.push(Token::new(TokenType::GTE, self.currline, self.currchar-1, self.currchar));
+            self.tokens.push(Token::new(TokenType::GTE, ErrorInfo::new(self.filename.clone(), self.sourcelines.get(self.currline-1).unwrap().to_string(), self.currline, self.currchar-1, self.currchar)));
             self.curri += 1;
             self.currchar += 1;
             return;
         }
-        self.tokens.push(Token::new(TokenType::GT, self.currline, self.currchar-1, self.currchar));
+        self.tokens.push(Token::new(TokenType::GT, ErrorInfo::new(self.filename.clone(), self.sourcelines.get(self.currline-1).unwrap().to_string(), self.currline, self.currchar-1, self.currchar)));
     }
     fn collect_ne(&mut self) {
         self.curri += 1;
         self.currchar += 1;
         if self.curri != self.source.len() && self.source.get(self.curri).unwrap() == &'=' {
-            self.tokens.push(Token::new(TokenType::NEQ, self.currline, self.currchar-1, self.currchar));
+            self.tokens.push(Token::new(TokenType::NEQ, ErrorInfo::new(self.filename.clone(), self.sourcelines.get(self.currline-1).unwrap().to_string(), self.currline, self.currchar-1, self.currchar)));
             self.curri += 1;
             self.currchar += 1;
             return;
         }
-        self.tokens.push(Token::new(TokenType::NOT, self.currline, self.currchar-1, self.currchar));
+        self.tokens.push(Token::new(TokenType::NOT, ErrorInfo::new(self.filename.clone(), self.sourcelines.get(self.currline-1).unwrap().to_string(), self.currline, self.currchar-1, self.currchar)));
     }
     
 }

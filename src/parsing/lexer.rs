@@ -71,6 +71,7 @@ impl<'a> Lexer<'a> {
             self.curri += 1;
             self.currchar += 1;
         }
+        self.tokens.push(Token::new(TokenType::EOF, ErrorInfo::new(self.filename.clone(), String::new(), 0, 0, 0)));
     }
     fn skip_space(&mut self) {
         while let Some(&c) = self.source.get(self.curri) {

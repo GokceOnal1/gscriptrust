@@ -1,6 +1,6 @@
 use crate::errors::error::*;
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone, Debug)]
 pub enum TokenType {
     INT(i32),
     FLOAT(f32),
@@ -30,7 +30,8 @@ pub enum TokenType {
     MIN,
     MUL,
     DIV,
-    DOT
+    DOT,
+    EOF
 }
 pub struct Token {
     pub kind : TokenType,
@@ -74,6 +75,7 @@ impl Token {
                 TokenType::MUL => println!("MUL"),
                 TokenType::DIV => println!("DIV"),
                 TokenType::DOT => println!("DOT"),
+                TokenType::EOF => println!("END OF FILE")
                 //_ => println!("UNPRINTABLE TOKEN"),
             }
         }

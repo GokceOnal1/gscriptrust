@@ -13,6 +13,7 @@ impl Visitor {
         match &node.kind {
             AST::STRING{..} | AST::INT{..} | AST::FLOAT{..} => { return node.clone(); } ,
             AST::BINOP{..} => { return self.visit_binop(node); }
+            AST::FUNC_CALL { .. } => { return self.visit_function_call(node); },
             AST::COMPOUND{ compound_value } => { compound_value.iter().for_each(|ast|  { self.visit(ast); }); return ASTNode::new_noop(); }
             _ => return ASTNode::new_noop()
         }
@@ -41,5 +42,24 @@ impl Visitor {
             _ => return ASTNode::new_noop()
         }
 
+    }
+    pub fn visit_function_call(&mut self, node : &ASTNode) -> ASTNode {
+        match &node.kind {
+            AST::FUNC_CALL { name, args } => {
+                match name.as_str() {
+                    "write" => return self.std_func_write(args),
+                    _ => return ASTNode::new_noop()
+                }
+            },
+            _ => ASTNode::new_noop()
+        }
+         
+    }
+    //MOVE THIS TO DIFFERENT FILE LATER
+    pub fn std_func_write(&mut self, args : &Vec<ASTNode> ) -> ASTNode {
+        for arg in args {
+            self.visit(arg).print()
+        }
+        ASTNode::new_noop()
     }
 }

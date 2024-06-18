@@ -87,6 +87,6 @@ impl ErrorStack {
     } 
     pub fn terminate_gs(&self) {
         self.print_dump();
-        std::process::exit(0);
+        std::process::exit(1);
     }
 }

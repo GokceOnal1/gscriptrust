@@ -1,5 +1,6 @@
 use crate::{errors::error::*, token::TokenType};
 
+#[derive(Clone)]
 pub enum AST {
     STRING {
         str_value : String,
@@ -22,6 +23,7 @@ pub enum AST {
     EOF
     
 }
+#[derive(Clone)]
 pub struct ASTNode {
     pub kind : AST,
     pub einfo : ErrorInfo,
@@ -29,6 +31,12 @@ pub struct ASTNode {
 impl ASTNode {
     pub fn new(kind : AST, einfo : ErrorInfo) -> ASTNode {
         ASTNode { kind, einfo }
+    }
+    pub fn new_noop() -> ASTNode {
+        ASTNode {
+            kind : AST::NOOP,
+            einfo : ErrorInfo::new(String::new(), String::new(), 0, 0, 0)
+        }
     }
     pub fn print(&self) {
         match &self.kind {

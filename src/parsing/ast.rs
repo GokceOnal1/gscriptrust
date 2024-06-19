@@ -1,7 +1,7 @@
 use crate::{errors::error::*, token::TokenType};
 
 #[allow(non_camel_case_types)]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum AST {
     STRING {
         str_value : String,
@@ -21,6 +21,18 @@ pub enum AST {
         name : String,
         value : Box<ASTNode>
     },
+    VAR {
+        name : String
+    },
+    VAR_REASSIGN {
+        name : String,
+        value : Box<ASTNode>
+    },
+    FUNC_DEF {
+        body : Box<ASTNode>,
+        name : String,
+        args : Vec<ASTNode>
+    },
     FUNC_CALL {
         name : String,
         args : Vec<ASTNode>
@@ -32,7 +44,7 @@ pub enum AST {
     EOF
     
 }
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ASTNode {
     pub kind : AST,
     pub einfo : ErrorInfo,
@@ -57,7 +69,7 @@ impl ASTNode {
             AST::FUNC_CALL { name, args }=>{println!("func call {}, args are:", name); args.iter().for_each(|x| x.print()); }
             AST::EOF => {println!("end of file"); }
             AST::NOOP => {println!("no operation");}
-            _ => {println!("ast print not yet implemented for this ast node type");}
+            _ => {println!("ast print not yet implemented for this ast node type\n({:?})", self.kind);}
         }
     }
 }

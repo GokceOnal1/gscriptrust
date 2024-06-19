@@ -41,7 +41,7 @@ impl GError {
         }
     }
 }
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ErrorInfo {
     pub file : String,
     pub linecontents : String,
@@ -64,7 +64,9 @@ impl ErrorStack {
         }
     }
     pub fn print_dump(&self) {
-        eprintln!("{}","-----------------------------------------".red());
+        if self.errors.len() != 0 {
+            eprintln!("{}","-----------------------------------------".red());
+        }
         for error in &self.errors {
             eprintln!(
                 "{}{}{}{}{}{} \n  {}{} {} \n  --> {} ",

@@ -24,6 +24,7 @@ impl<'a> Parser<'a> {
             self.errorstack.terminate_gs();
         }
     } 
+    //DONE
     pub fn parse_compound(&mut self) -> Option<ASTNode> {
         let mut comp_ast = ASTNode::new(AST::COMPOUND { 
             compound_value: ( Vec::new()) 
@@ -45,6 +46,7 @@ impl<'a> Parser<'a> {
         }
         Some(comp_ast)
     }
+    //DONE
     pub fn parse_comp_expr(&mut self) -> Option<ASTNode> {
         let mut ast_left = self.parse_comp_term()?;
             while let Some(tok) = self.curr_token {
@@ -70,6 +72,7 @@ impl<'a> Parser<'a> {
             }
             Some(ast_left)
     }
+    //DONE
     pub fn parse_comp_term(&mut self) -> Option<ASTNode> {
         let mut ast_left = self.parse_expr()?;
             while let Some(tok) = self.curr_token {
@@ -115,6 +118,7 @@ impl<'a> Parser<'a> {
                         self.errorstack.terminate_gs();
                         None
                     } else {
+                        self.advance();
                         ast
                     }
                 }
@@ -183,12 +187,14 @@ impl<'a> Parser<'a> {
             TokenType::ID(ref name) => {
                 match name.as_str() {
                     "assign" => self.parse_variable_definition(),
+                    "funct" => self.parse_function_definition(),
                     _ => self.parse_variable()
                 }
             }
             _ => None
         }
     }
+    //DONE
     pub fn parse_variable_definition(&mut self) -> Option<ASTNode> {
         self.advance();
         match &self.curr_token?.kind {
@@ -204,14 +210,76 @@ impl<'a> Parser<'a> {
             _ => None 
         }
     }
+    //DONE
     pub fn parse_variable(&mut self) -> Option<ASTNode> {
         self.advance();
         if self.curr_token?.kind == TokenType::LPR {
             return self.parse_function_call();
+        } else if self.curr_token?.kind == TokenType::EQL {
+            return self.parse_variable_reassign();
         } else {
-            None
+            let var_name = match &self.prev_token?.kind {
+                TokenType::ID(x) => x.to_owned(),
+                _ => String::new()
+            };
+            return Some(ASTNode::new(AST::VAR { name : var_name }, self.prev_token?.einfo.clone()));
         }
+
     }
+    //DONE
+    pub fn parse_variable_reassign(&mut self) -> Option<ASTNode> {
+        let var_name = match &self.prev_token?.kind {
+            TokenType::ID(x) => x.to_owned(),
+            _ => String::new()
+        };
+        self.advance(); //past the EQL
+        let var_value = self.parse_comp_expr()?;
+        Some(ASTNode::new(AST::VAR_REASSIGN { name: var_name, value: Box::new(var_value) }, self.prev_token?.einfo.clone()))
+    }
+    //DONE
+    pub fn parse_function_definition(&mut self) -> Option<ASTNode> {
+        self.advance(); //past the 'funct'
+        let func_name = match &self.curr_token?.kind {
+            TokenType::ID(x) => x.clone(),
+            _ => String::new()
+        };
+        let e = self.curr_token?.einfo.clone();
+        self.advance();
+        self.verify(TokenType::LPR);
+        self.advance();
+        let mut func_args: Vec<ASTNode> = Vec::new();
+        if self.curr_token?.kind != TokenType::RPR {
+            func_args.push(self.parse_function_param().unwrap_or(ASTNode::new_noop()));
+        }
+        while let Some(tok) = self.curr_token {
+            if tok.kind != TokenType::CMA {
+                break;
+            } else {
+                self.advance();
+                func_args.push(self.parse_function_param().unwrap_or(ASTNode::new_noop()));
+            }
+        }
+        self.verify(TokenType::RPR);
+        self.advance();
+        self.verify(TokenType::LBR);
+        self.advance();
+        let func_body = self.parse_compound()?;
+        self.verify(TokenType::RBR);
+        self.advance();
+        Some(ASTNode::new(AST::FUNC_DEF { body: Box::new(func_body), name: func_name, args: func_args }, e))
+    }
+    //DONE
+    pub fn parse_function_param(&mut self) -> Option<ASTNode> {
+        self.verify(TokenType::STRING("param".to_string()));
+        self.advance();
+        let param_name = match &self.curr_token?.kind {
+            TokenType::ID(x) => x.clone(),
+            _ => String::new()
+        };
+        self.advance();
+        Some(ASTNode::new(AST::VAR_DEF{name:param_name, value: Box::new(ASTNode::new_noop())}, self.curr_token?.einfo.clone()))
+    }
+    //DONE
     pub fn parse_function_call(&mut self) -> Option<ASTNode> {
         if let Some(tok) = self.prev_token {
             match &tok.kind {
@@ -230,7 +298,7 @@ impl<'a> Parser<'a> {
                             }
                         }
                     }
-                    //first verify that curr token is rpr
+                    self.verify(TokenType::RPR);
                     self.advance();
                     Some(ASTNode::new(AST::FUNC_CALL {
                         name : func_name.to_string(), args : func_args

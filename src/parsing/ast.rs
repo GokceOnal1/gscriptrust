@@ -69,7 +69,7 @@ impl ASTNode {
             AST::FUNC_CALL { name, args }=>{println!("func call {}, args are:", name); args.iter().for_each(|x| x.print()); }
             AST::EOF => {println!("end of file"); }
             AST::NOOP => {println!("no operation");}
-            _ => {println!("ast print not yet implemented for this ast node type\n({:?})", self.kind);}
+            _ => {println!("ast print not yet implemented for this ast node type\n({:#?})", self.kind);}
         }
     }
 }

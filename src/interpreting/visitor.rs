@@ -1,12 +1,14 @@
 use crate::errors::error::*;
 use crate::parsing::ast::*;
 use crate::parsing::token::*;
+use std::cell::RefCell;
+use std::rc::Rc;
 
 pub struct Visitor {
-    pub errorstack : ErrorStack
+    pub errorstack : Rc<RefCell<ErrorStack>>
 }
 impl Visitor {
-    pub fn new(errorstack : ErrorStack) -> Visitor {
+    pub fn new(errorstack : Rc<RefCell<ErrorStack>>) -> Visitor {
         Visitor { errorstack }
     }
     pub fn visit(&mut self, node : &ASTNode) -> ASTNode {
@@ -62,16 +64,40 @@ impl Visitor {
                         return ASTNode::new(AST::FLOAT{ float_value : x * y}, node.einfo.clone())
                     },
                     (AST::INT{ int_value: x } , TokenType::DIV, AST::INT{ int_value : y }) => {
-                        return ASTNode::new(AST::INT{ int_value : x / y}, node.einfo.clone())
+                        if y == 0 {
+                            self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::DivideByZeroError, "Cannot divide by zero", node.einfo.clone()));
+                            self.errorstack.borrow().terminate_gs();
+                            return ASTNode::new_noop();
+                        } else {
+                            return ASTNode::new(AST::INT{ int_value : x / y}, node.einfo.clone())
+                        }    
                     },
                     (AST::INT{ int_value: x } , TokenType::DIV, AST::FLOAT{ float_value : y }) => {
-                        return ASTNode::new(AST::FLOAT{ float_value : x as f32 / y}, node.einfo.clone())
+                        if y == 0.0 {
+                            self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::DivideByZeroError, "Cannot divide by zero", node.einfo.clone()));
+                            self.errorstack.borrow().terminate_gs();
+                            return ASTNode::new_noop();
+                        } else {
+                            return ASTNode::new(AST::FLOAT{ float_value : x as f32 / y}, node.einfo.clone())
+                        }    
                     },
                     (AST::FLOAT{ float_value: x } , TokenType::DIV, AST::INT{ int_value : y }) => {
-                        return ASTNode::new(AST::FLOAT{ float_value : x / y as f32}, node.einfo.clone())
+                        if y == 0 {
+                            self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::DivideByZeroError, "Cannot divide by zero", node.einfo.clone()));
+                            self.errorstack.borrow().terminate_gs();
+                            return ASTNode::new_noop();
+                        } else {
+                            return ASTNode::new(AST::FLOAT{ float_value : x / y as f32}, node.einfo.clone())
+                        }    
                     },
                     (AST::FLOAT{ float_value: x } , TokenType::DIV, AST::FLOAT{ float_value : y }) => {
-                        return ASTNode::new(AST::FLOAT{ float_value : x / y}, node.einfo.clone())
+                        if y == 0.0 {
+                            self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::DivideByZeroError, "Cannot divide by zero", node.einfo.clone()));
+                            self.errorstack.borrow().terminate_gs();
+                            return ASTNode::new_noop();
+                        } else {
+                            return ASTNode::new(AST::FLOAT{ float_value : x / y}, node.einfo.clone())
+                        }    
                     }
                     _ => return ASTNode::new_noop()
                 }

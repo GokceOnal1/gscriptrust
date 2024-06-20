@@ -1,16 +1,18 @@
 use crate::errors::error::*;
 use super::ast::*;
 use super::token::*;
+use std::cell::RefCell;
+use std::rc::Rc;
 
 pub struct Parser<'a> {
     prev_token : Option<&'a Token>,
     curr_token : Option<&'a Token>,
     token_i : usize,
     tokens : &'a Vec<Token>,
-    errorstack : &'a mut ErrorStack,
+    errorstack : Rc<RefCell<ErrorStack>>,
 }
 impl<'a> Parser<'a> {
-    pub fn new(tokens : &'a Vec<Token>, errorstack : &'a mut ErrorStack) -> Parser<'a> {
+    pub fn new(tokens : &'a Vec<Token>, errorstack : Rc<RefCell<ErrorStack>>) -> Parser<'a> {
         Parser { prev_token: None, curr_token: tokens.get(0), token_i : 0, tokens, errorstack }
     }
     pub fn advance(&mut self) {
@@ -20,8 +22,8 @@ impl<'a> Parser<'a> {
     }
     pub fn verify(&mut self, comparison : TokenType) {
         if self.curr_token.unwrap().kind != comparison {
-            self.errorstack.errors.push(GError::new_from_tok(ETypes::TokenError, format!("Expected token {:?} but received {:?}", comparison, self.curr_token.unwrap().kind ).as_str(), self.curr_token.unwrap().einfo.clone()));
-            self.errorstack.terminate_gs();
+            self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::TokenError, format!("Expected token {:?} but received {:?}", comparison, self.curr_token.unwrap().kind ).as_str(), self.curr_token.unwrap().einfo.clone()));
+            self.errorstack.borrow().terminate_gs();
         }
     } 
     //DONE
@@ -114,8 +116,8 @@ impl<'a> Parser<'a> {
                     let ast = self.parse_comp_expr();
                     if self.curr_token?.kind != TokenType::RPR {
                         //err
-                        self.errorstack.errors.push(GError::new_from_tok(ETypes::SyntaxError, "Expected ')'", self.curr_token?.einfo.clone()));
-                        self.errorstack.terminate_gs();
+                        self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::SyntaxError, "Expected ')'", self.curr_token?.einfo.clone()));
+                        self.errorstack.borrow().terminate_gs();
                         None
                     } else {
                         self.advance();
@@ -270,7 +272,7 @@ impl<'a> Parser<'a> {
     }
     //DONE
     pub fn parse_function_param(&mut self) -> Option<ASTNode> {
-        self.verify(TokenType::STRING("param".to_string()));
+        self.verify(TokenType::ID("param".to_string()));
         self.advance();
         let param_name = match &self.curr_token?.kind {
             TokenType::ID(x) => x.clone(),
@@ -316,7 +318,7 @@ impl<'a> Parser<'a> {
             self.advance();
             match &tok.kind {
                 TokenType::STRING(s) => { return Some(ASTNode::new(AST::STRING { str_value : s.to_string() }, tok.einfo.clone())); }
-                _ => { self.errorstack.errors.push(GError::new_from_tok(ETypes::TokenError, "Expected token 'STRING'", tok.einfo.clone()));
+                _ => { self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::TokenError, "Expected token 'STRING'", tok.einfo.clone()));
                 return None; }
             }; 
         } else {
@@ -330,7 +332,7 @@ impl<'a> Parser<'a> {
             match tok.kind {
                 TokenType::INT(x) => { return Some(ASTNode::new(AST::INT { int_value : x}, tok.einfo.clone()))}
                 TokenType::FLOAT(x) => {return Some(ASTNode::new(AST::FLOAT { float_value: x }, tok.einfo.clone()))}
-                _ => { self.errorstack.errors.push(GError::new_from_tok(ETypes::TokenError, "Expected token 'INT' or 'FLOAT'", tok.einfo.clone()));
+                _ => { self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::TokenError, "Expected token 'INT' or 'FLOAT'", tok.einfo.clone()));
                 return None; }
             }
         } else {

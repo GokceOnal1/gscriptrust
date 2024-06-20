@@ -1,1 +1,1 @@
-write( funct a() {}; );
+write( # ;)

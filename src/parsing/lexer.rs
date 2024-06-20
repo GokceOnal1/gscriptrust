@@ -1,9 +1,11 @@
 use super::token::*;
 use std::fs;
 use crate::errors::error::*;
+use std::cell::RefCell;
+use std::rc::Rc;
 
 
-pub struct Lexer<'a> {
+pub struct Lexer {
     filename : String,
     pub tokens : Vec<Token>,
     source :  Vec<char>,
@@ -11,10 +13,10 @@ pub struct Lexer<'a> {
     curri : usize,
     currline : usize,
     currchar : usize,
-    errorstack : &'a mut ErrorStack
+    errorstack : Rc<RefCell<ErrorStack>>
 }
-impl<'a> Lexer<'a> {
-    pub fn new(filename : &str, errorstack : &'a mut ErrorStack) -> Lexer<'a> {
+impl Lexer {
+    pub fn new(filename : &str, errorstack : Rc<RefCell<ErrorStack>>) -> Lexer {
         let filename = filename.to_string();
         let s: String = fs::read_to_string(&filename).unwrap_or_else(|e| {
             eprintln!("Problem initiating lexer: {e}");
@@ -66,7 +68,7 @@ impl<'a> Lexer<'a> {
                 '*' => { self.tokens.push(Token::new(TokenType::MUL, ErrorInfo::new(self.filename.clone(), self.sourcelines.get(self.currline-1).unwrap().to_string(), self.currline, self.currchar, self.currchar+1)));}
                 '/' => { self.tokens.push(Token::new(TokenType::DIV, ErrorInfo::new(self.filename.clone(), self.sourcelines.get(self.currline-1).unwrap().to_string(), self.currline, self.currchar, self.currchar+1)));}
                 '.' => { self.tokens.push(Token::new(TokenType::DOT, ErrorInfo::new(self.filename.clone(), self.sourcelines.get(self.currline-1).unwrap().to_string(), self.currline, self.currchar, self.currchar+1)));}
-                _ => { self.errorstack.errors.push(GError::new(ETypes::TokenError, "Unrecognized token", self.filename.clone(), self.sourcelines.get(self.currline-1).unwrap().to_string(), self.currline, self.currchar, self.currchar+1));}
+                _ => { self.errorstack.borrow_mut().errors.push(GError::new(ETypes::TokenError, "Unrecognized token", self.filename.clone(), self.sourcelines.get(self.currline-1).unwrap().to_string(), self.currline, self.currchar, self.currchar+1));}
             }
             self.curri += 1;
             self.currchar += 1;
@@ -134,7 +136,7 @@ impl<'a> Lexer<'a> {
         let snum : String = n.iter().collect();
                 if dot {
                     let num : f32 = snum.parse().unwrap_or_else( |_| {
-                        self.errorstack.errors.push(
+                        self.errorstack.borrow_mut().errors.push(
                             GError::new(ETypes::SyntaxError, "Invalid syntax for creating a float", self.filename.clone(), self.sourcelines.get(self.currline-1).unwrap().to_string(), self.currline, starting_c, self.currchar )
                         );
                         return 0.0;
@@ -143,7 +145,7 @@ impl<'a> Lexer<'a> {
                     return;
                 } else {
                     let num : i32 = snum.parse().unwrap_or_else( |_| {
-                        self.errorstack.errors.push(
+                        self.errorstack.borrow_mut().errors.push(
                             GError::new(ETypes::SyntaxError, "Invalid syntax for creating an int", self.filename.clone(), self.sourcelines.get(self.currline-1).unwrap().to_string(), self.currline, starting_c, self.currchar )
                         );
                         return 0;

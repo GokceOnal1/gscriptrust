@@ -202,11 +202,12 @@ impl<'a> Parser<'a> {
         match &self.curr_token?.kind {
             TokenType::ID(name) => {
                 let var_name = name;
+                let e = self.curr_token?.einfo.clone();
                 self.advance();
                 self.verify(TokenType::EQL);
                 self.advance();
                 let var_value = self.parse_comp_expr()?;
-                let var_def = ASTNode::new(AST::VAR_DEF { name: var_name.to_string(), value: Box::new(var_value) }, self.curr_token?.einfo.clone());
+                let var_def = ASTNode::new(AST::VAR_DEF { name: var_name.to_string(), value: Box::new(var_value) }, e);
                 return Some(var_def);
             }
             _ => None 
@@ -226,6 +227,7 @@ impl<'a> Parser<'a> {
             };
             return Some(ASTNode::new(AST::VAR { name : var_name }, self.prev_token?.einfo.clone()));
         }
+        
 
     }
     //DONE

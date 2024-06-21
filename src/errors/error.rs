@@ -8,6 +8,8 @@ pub enum ETypes {
     FileError,
     TokenError,
     EndOfInputError,
+    VariableDefinitionError,
+    IdentifierError
 }
 impl std::fmt::Display for ETypes {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -17,6 +19,8 @@ impl std::fmt::Display for ETypes {
             Self::FileError => write!(f, "FileError"),
             Self::TokenError => write!(f, "TokenError"),
             Self::EndOfInputError => write!(f, "EndOfInputError"),
+            Self::VariableDefinitionError => write!(f, "VariableDefinitionError"),
+            Self::IdentifierError => write!(f, "IdentifierError")
         }
     }
 }

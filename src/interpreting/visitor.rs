@@ -21,7 +21,7 @@ impl Visitor {
             AST::VAR_DEF{..} => { return self.visit_variable_definition(node); }
             AST::VAR{..} => { return self.visit_variable(node); }
             AST::FUNC_CALL { .. } => { return self.visit_function_call(node); },
-           /*VERY TEMPORARY*/ AST::FUNC_DEF {..} => return node.clone(),
+            AST::FUNC_DEF {..} => { return self.visit_function_definition(node); },
             AST::COMPOUND{ compound_value } => { compound_value.iter().for_each(|ast|  { self.visit(ast); }); return ASTNode::new_noop(); }
             _ => return ASTNode::new_noop()
         }
@@ -116,12 +116,70 @@ impl Visitor {
             AST::FUNC_CALL { name, args } => {
                 match name.as_str() {
                     "write" => return self.std_func_write(args),
-                    _ => return ASTNode::new_noop()
+                    _ => {}
+                }
+                //cloning here because of borrowing rules
+                let curr_scope = self.current_scope.clone();
+                let fdef_option = curr_scope.resolve_func(name.clone());
+                if let Some(fdef) =  fdef_option {
+                    match &fdef.kind {
+                        AST::FUNC_DEF { name: _, body: fdef_body, args: fdef_args } => {
+                            if args.len() != fdef_args.len() {
+                                //improper args error
+                                self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::FunctionError, format!("Function '{}' requires {} argument(s), not {}", name, fdef_args.len(), args.len()).as_str(), node.einfo.clone()));
+                                return ASTNode::new_noop();
+                            }
+                            // -- FIXED --
+                            // by implementing Scope::get_root_scope
+                            // !! ISSUE !!
+                            //setting self.current_scope as the parent DOES NOT WORK in recursive scenarios
+                            //solution: set the parent as some kind of global scope
+                            // !! END ISSUE !!
+                            let mut func_scope = Scope::new(Some(Box::new(Scope::get_root_scope(self.current_scope.clone()))));
+                            for (argdef, arg) in fdef_args.iter().zip(args.iter()) {
+                                let arg_val = self.visit(arg);
+
+                                if let AST::VAR_DEF{name: argdef_name, ..} = &argdef.kind {
+                                    if let Err(s) = func_scope.add_var(&ASTNode::new(AST::VAR_DEF { name: argdef_name.clone() , value: Box::new(arg_val) }, arg.einfo.clone())) {
+                                        println!("{}",s);
+                                    }
+                                } else {
+                                    //this should never happen...
+                                    eprintln!("func argdef error");
+                                    return ASTNode::new_noop();
+                                }
+                                
+                            }
+                            let cscope = self.current_scope.clone();
+                            self.current_scope = func_scope;
+                            let res = self.visit(&fdef_body);
+                            self.current_scope = cscope;
+                            res
+
+                        },
+                        _ => ASTNode::new_noop()
+                    }
+                } else {
+                    //function is not defined error
+                    self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::FunctionError, format!("Function '{}' does not exist in the current scope",name).as_str(), node.einfo.clone()));
+                    ASTNode::new_noop()
                 }
             },
             _ => ASTNode::new_noop()
         }
          
+    }
+    pub fn visit_function_definition(&mut self, node : &ASTNode) -> ASTNode {
+        match &node.kind {
+            AST::FUNC_DEF { .. } => {
+                if let Err(s) = self.current_scope.add_func(node) {
+                    self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::FunctionDefinitionError, s.as_str(), node.einfo.clone()));
+                    self.errorstack.borrow().terminate_gs();
+                }
+                node.clone()
+            },
+            _ => return ASTNode::new_noop()
+        }
     }
     pub fn visit_variable_definition(&mut self, node : &ASTNode) -> ASTNode {
         match &node.kind {

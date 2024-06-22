@@ -19,7 +19,8 @@ impl Lexer {
     pub fn new(filename : &str, errorstack : Rc<RefCell<ErrorStack>>) -> Lexer {
         let filename = filename.to_string();
         let s: String = fs::read_to_string(&filename).unwrap_or_else(|e| {
-            eprintln!("Problem initiating lexer: {e}");
+            errorstack.borrow_mut().errors.push(GError::new(ETypes::FileError, &e.to_string(), String::new(), String::new(), 0, 0, 0));
+            errorstack.borrow_mut().terminate_gs();
             std::process::exit(1);
         });
         Lexer { filename, tokens : Vec::new(), source : s.chars().collect(), sourcelines : s.split('\n').map(|s| s.to_string()).collect(),  curri : 0, currline : 1, currchar : 1, errorstack, }

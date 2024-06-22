@@ -9,6 +9,8 @@ pub enum ETypes {
     TokenError,
     EndOfInputError,
     VariableDefinitionError,
+    FunctionDefinitionError,
+    FunctionError,
     IdentifierError
 }
 impl std::fmt::Display for ETypes {
@@ -20,6 +22,8 @@ impl std::fmt::Display for ETypes {
             Self::TokenError => write!(f, "TokenError"),
             Self::EndOfInputError => write!(f, "EndOfInputError"),
             Self::VariableDefinitionError => write!(f, "VariableDefinitionError"),
+            Self::FunctionDefinitionError => write!(f, "FunctionDefinitionError"),
+            Self::FunctionError => write!(f, "FunctionError"),
             Self::IdentifierError => write!(f, "IdentifierError")
         }
     }

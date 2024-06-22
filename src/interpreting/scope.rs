@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use crate::ast::*;
 
 
+#[derive(Clone)]
 pub struct Scope {
     parent : Option<Box<Scope>>,
     variables : HashMap<String, ASTNode>,
@@ -68,5 +69,12 @@ impl Scope {
                 None
             }
         })
+    }
+    pub fn get_root_scope(starting_scope : Scope) -> Scope {
+        let mut cs = starting_scope;
+        while let Some(par) = cs.parent {
+            cs = (*par).clone();
+        }
+        cs
     }
 }

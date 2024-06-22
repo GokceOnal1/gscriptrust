@@ -32,7 +32,7 @@ impl<'a> Parser<'a> {
             compound_value: ( Vec::new()) 
         }, self.curr_token.unwrap().einfo.clone());
         match comp_ast.kind {
-            AST::COMPOUND { ref mut compound_value } => { compound_value.push(self.parse_comp_expr().unwrap_or(ASTNode::new(AST::NOOP, self.prev_token.unwrap().einfo.clone()))) },
+            AST::COMPOUND { ref mut compound_value } => { compound_value.push(self.parse_comp_expr().unwrap_or(ASTNode::new(AST::NOOP, self.curr_token.unwrap().einfo.clone()))) },
             _ => { return None }
         }
         while let Some(tok) = self.curr_token {
@@ -41,7 +41,7 @@ impl<'a> Parser<'a> {
             } else {
                 self.advance();
                 match comp_ast.kind {
-                    AST::COMPOUND { ref mut compound_value } => { compound_value.push(self.parse_comp_expr().unwrap_or(ASTNode::new(AST::NOOP, self.prev_token.unwrap().einfo.clone()))) },
+                    AST::COMPOUND { ref mut compound_value } => { compound_value.push(self.parse_comp_expr().unwrap_or(ASTNode::new(AST::NOOP, self.curr_token.unwrap().einfo.clone()))) },
                     _ => { return None }
                 }
             }
@@ -166,7 +166,7 @@ impl<'a> Parser<'a> {
                     TokenType::PLS | TokenType::MIN => {
                         let op = tok.kind.clone();
                         self.advance();
-                        let right = self.parse_term().unwrap();
+                        let right = self.parse_term().unwrap_or(ASTNode::new_noop());
 
                         let ast_binop = AST::BINOP {
                             left : Box::new(ast_left),

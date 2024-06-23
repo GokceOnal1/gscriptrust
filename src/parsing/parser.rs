@@ -124,6 +124,13 @@ impl<'a> Parser<'a> {
                         ast
                     }
                 }
+                TokenType::MIN => {
+                    self.advance();
+                    // -- TODO --
+                    //handle invalid negative number error
+                    let ast_body = self.parse_mono().unwrap_or(ASTNode::new_noop());
+                    Some(ASTNode::new(AST::UNOP { op: TokenType::MIN, body: Box::new(ast_body)}, tok.einfo.clone()))
+                }
                 _ => None
             }
         } else {
@@ -190,6 +197,16 @@ impl<'a> Parser<'a> {
                 match name.as_str() {
                     "assign" => self.parse_variable_definition(),
                     "funct" => self.parse_function_definition(),
+                    "true" => {
+                        let res = Some(ASTNode::new(AST::BOOL{ bool_value : true }, self.curr_token?.einfo.clone()));
+                        self.advance();
+                        res
+                    },
+                    "false" => {
+                        let res = Some(ASTNode::new(AST::BOOL{bool_value : false}, self.curr_token?.einfo.clone()));
+                        self.advance();
+                        res
+                    }
                     _ => self.parse_variable()
                 }
             }

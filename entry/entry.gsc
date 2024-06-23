@@ -1,5 +1,2 @@
-funct addOne(param n) {
-    write(n + 1);
-    addOne(n + 1);
-};
-addOne(1);
+assign a = false + 1;
+write(a);

@@ -16,8 +16,9 @@ impl Visitor {
     }
     pub fn visit(&mut self, node : &ASTNode) -> ASTNode {
         match &node.kind {
-            AST::STRING{..} | AST::INT{..} | AST::FLOAT{..} => { return node.clone(); } ,
+            AST::STRING{..} | AST::INT{..} | AST::FLOAT{..} | AST::BOOL{..} => { return node.clone(); } ,
             AST::BINOP{..} => { return self.visit_binop(node); }
+            AST::UNOP{..} => { return self.visit_unop(node); }
             AST::VAR_DEF{..} => { return self.visit_variable_definition(node); }
             AST::VAR{..} => { return self.visit_variable(node); }
             AST::FUNC_CALL { .. } => { return self.visit_function_call(node); },
@@ -110,6 +111,23 @@ impl Visitor {
             _ => return ASTNode::new_noop()
         }
 
+    }
+    pub fn visit_unop(&mut self, node : &ASTNode) -> ASTNode {
+        match &node.kind {
+            AST::UNOP { op, body } => {
+                let body_val = self.visit(body);
+                match (op, &body_val.kind) {
+                    (TokenType::MIN, AST::INT{int_value}) => {
+                        return ASTNode::new(AST::INT{ int_value : -int_value}, node.einfo.clone());
+                    }
+                    (TokenType::MIN, AST::FLOAT{float_value}) => {
+                        return ASTNode::new(AST::FLOAT{float_value : -float_value}, node.einfo.clone());
+                    }
+                    _ => return ASTNode::new_noop()
+                }
+            }
+            _ => return ASTNode::new_noop()
+        }
     }
     pub fn visit_function_call(&mut self, node : &ASTNode) -> ASTNode {
         match &node.kind {

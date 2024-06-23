@@ -12,10 +12,17 @@ pub enum AST {
     FLOAT {
         float_value : f32,
     },
+    BOOL {
+        bool_value : bool
+    },
     BINOP {
         left : Box<ASTNode>,
         op : TokenType, 
         right : Box<ASTNode>
+    },
+    UNOP {
+        op : TokenType,
+        body : Box<ASTNode>
     },
     VAR_DEF {
         name : String,
@@ -64,6 +71,7 @@ impl ASTNode {
             AST::STRING{str_value} => { println!("string: {}", str_value)},
             AST::INT{int_value}=>{println!("int: {}",int_value)},
             AST::FLOAT{float_value}=>{println!("float: {}", float_value)},
+            AST::BOOL{bool_value}=>{println!("bool: {}", bool_value)},
             AST::BINOP{left, op, right}=>{println!("binop: "); left.to_owned().print(); println!("operator: {:?}", op); right.to_owned().print();}
             AST::COMPOUND{compound_value}=>{println!("compound, values are:"); compound_value.iter().for_each(|x| x.print());}
             AST::FUNC_CALL { name, args }=>{println!("func call {}, args are:", name); args.iter().for_each(|x| x.print()); }

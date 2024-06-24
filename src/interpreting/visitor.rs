@@ -23,16 +23,39 @@ impl Visitor {
             AST::VAR{..} => { return self.visit_variable(node); }
             AST::FUNC_CALL { .. } => { return self.visit_function_call(node); },
             AST::FUNC_DEF {..} => { return self.visit_function_definition(node); },
-            AST::COMPOUND{ compound_value } => { compound_value.iter().for_each(|ast|  { self.visit(ast); }); return ASTNode::new_noop(); }
+            AST::RETURN{..} => { return self.visit_return(node); },
+            AST::IF{..} => { return self.visit_if(node); }
+            AST::COMPOUND{ compound_value } => { 
+                for ast in compound_value { 
+                    let res = self.visit(ast); 
+                    if let AST::RETURN{..} = res.kind {
+                        return res;
+                    }
+                }
+                return ASTNode::new_noop(); 
+            }
             _ => return ASTNode::new_noop()
         }
     }
+    //fix this later... (this is too messy)
     pub fn visit_binop(&mut self, node : &ASTNode) -> ASTNode {
         match &node.kind {
             AST::BINOP{ left, op, right} => {
                 let nleft = self.visit(left);
                 let nright = self.visit(right);
                 match (nleft.kind, op, nright.kind) {
+                    (AST::INT{ int_value: x } , TokenType::DEQL, AST::INT{ int_value : y }) => {
+                        return ASTNode::new(AST::BOOL{ bool_value : x == y}, node.einfo.clone())
+                    },
+                    (AST::INT{ int_value: x } , TokenType::DEQL, AST::FLOAT{ float_value : y }) => {
+                        return ASTNode::new(AST::BOOL{ bool_value : x as f32 == y}, node.einfo.clone())
+                    },
+                    (AST::FLOAT{ float_value: x } , TokenType::DEQL, AST::INT{ int_value : y }) => {
+                        return ASTNode::new(AST::BOOL{ bool_value : x == y as f32}, node.einfo.clone())
+                    },
+                    (AST::FLOAT{ float_value: x } , TokenType::DEQL, AST::FLOAT{ float_value : y }) => {
+                        return ASTNode::new(AST::BOOL{ bool_value : x == y}, node.einfo.clone())
+                    },
                     (AST::INT{ int_value: x } , TokenType::PLS, AST::INT{ int_value : y }) => {
                         return ASTNode::new(AST::INT{ int_value : x + y}, node.einfo.clone())
                     },
@@ -104,7 +127,43 @@ impl Visitor {
                         } else {
                             return ASTNode::new(AST::FLOAT{ float_value : x / y}, node.einfo.clone())
                         }    
-                    }
+                    },
+                    (AST::FLOAT{ float_value: x } , TokenType::MOD, AST::FLOAT{ float_value : y }) => {
+                        if y == 0.0 {
+                            self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::DivideByZeroError, "Cannot divide by zero", node.einfo.clone()));
+                            self.errorstack.borrow().terminate_gs();
+                            return ASTNode::new_noop();
+                        } else {
+                            return ASTNode::new(AST::FLOAT{ float_value : x % y}, node.einfo.clone())
+                        }    
+                    },
+                    (AST::INT{ int_value: x } , TokenType::MOD, AST::INT{ int_value : y }) => {
+                        if y == 0 {
+                            self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::DivideByZeroError, "Cannot divide by zero", node.einfo.clone()));
+                            self.errorstack.borrow().terminate_gs();
+                            return ASTNode::new_noop();
+                        } else {
+                            return ASTNode::new(AST::INT{ int_value : x % y}, node.einfo.clone())
+                        }    
+                    },
+                    (AST::INT{ int_value: x } , TokenType::MOD, AST::FLOAT{ float_value : y }) => {
+                        if y == 0.0 {
+                            self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::DivideByZeroError, "Cannot divide by zero", node.einfo.clone()));
+                            self.errorstack.borrow().terminate_gs();
+                            return ASTNode::new_noop();
+                        } else {
+                            return ASTNode::new(AST::FLOAT{ float_value : x as f32 % y}, node.einfo.clone())
+                        }    
+                    },
+                    (AST::FLOAT{ float_value: x } , TokenType::MOD, AST::INT{ int_value : y }) => {
+                        if y == 0 {
+                            self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::DivideByZeroError, "Cannot divide by zero", node.einfo.clone()));
+                            self.errorstack.borrow().terminate_gs();
+                            return ASTNode::new_noop();
+                        } else {
+                            return ASTNode::new(AST::FLOAT{ float_value : x % y as f32}, node.einfo.clone())
+                        }    
+                    },
                     _ => return ASTNode::new_noop()
                 }
             },
@@ -172,7 +231,11 @@ impl Visitor {
                             self.current_scope = func_scope;
                             let res = self.visit(&fdef_body);
                             self.current_scope = cscope;
-                            res
+                            if let AST::RETURN { value } = res.kind {
+                                *value
+                            } else {
+                                res
+                            }
 
                         },
                         _ => ASTNode::new_noop()
@@ -186,6 +249,12 @@ impl Visitor {
             _ => ASTNode::new_noop()
         }
          
+    }
+    pub fn visit_return(&mut self, node : &ASTNode) -> ASTNode {
+        match &node.kind {
+            AST::RETURN{value} => ASTNode::new(AST::RETURN{value: Box::new(self.visit(&value))}, node.einfo.clone()),
+            _ => ASTNode::new_noop()
+        }
     }
     pub fn visit_function_definition(&mut self, node : &ASTNode) -> ASTNode {
         match &node.kind {
@@ -232,6 +301,42 @@ impl Visitor {
                 }
             },
             _ => return ASTNode::new_noop()
+        }
+    }
+    pub fn visit_if(&mut self, node : &ASTNode) -> ASTNode {
+        match &node.kind {
+            AST::IF {
+                conditions, bodies, else_body
+            } => {
+                for (cond, body) in conditions.iter().zip(bodies.iter()) {
+                    let cond_val = self.visit(cond);
+                    match &cond_val.kind {
+                        AST::BOOL { bool_value } => {
+                            if *bool_value {
+                                let res = self.visit(body);
+                                if let AST::RETURN{..} = res.kind {
+                                    return res;
+                                } else {
+                                    return ASTNode::new_noop();
+                                }
+                            }
+                        },
+                        _ => { self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::ConditionalError, "Expected conditional expression", cond.einfo.clone())); return ASTNode::new_noop()}
+                    }
+                }
+                if let Some(b) = else_body {
+                    let res = self.visit(&b);
+                    if let AST::RETURN{..} = res.kind {
+                        return res;
+                    } else {
+                        return ASTNode::new_noop();
+                    }
+                } else {
+                    return ASTNode::new_noop();
+                }
+
+            },
+            _ => ASTNode::new_noop()
         }
     }
     //MOVE THIS TO DIFFERENT FILE LATER

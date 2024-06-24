@@ -1,2 +1,4 @@
-assign a = false + 1;
-write(a);
+if ( 1 ) {
+    write("chodo");
+};
+write("hello!");

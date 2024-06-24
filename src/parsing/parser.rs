@@ -197,6 +197,8 @@ impl<'a> Parser<'a> {
                 match name.as_str() {
                     "assign" => self.parse_variable_definition(),
                     "funct" => self.parse_function_definition(),
+                    "return" => self.parse_return(),
+                    "if" => self.parse_if(),
                     "true" => {
                         let res = Some(ASTNode::new(AST::BOOL{ bool_value : true }, self.curr_token?.einfo.clone()));
                         self.advance();
@@ -330,6 +332,56 @@ impl<'a> Parser<'a> {
         } else {
             None
         }
+    }
+    //DONE
+    pub fn parse_return(&mut self) -> Option<ASTNode> {
+        self.advance();
+        let return_value = self.parse_comp_expr().unwrap_or(ASTNode::new_noop());
+        Some(ASTNode::new(AST::RETURN{value:Box::new(return_value)}, self.curr_token?.einfo.clone()))
+    }
+    pub fn parse_if(&mut self) -> Option<ASTNode> {
+        let e = self.curr_token?.einfo.clone();
+        self.advance(); //past 'if'
+        self.verify(TokenType::LPR);
+        self.advance();
+        let mut conds : Vec<ASTNode> = Vec::new();
+        conds.push(self.parse_comp_expr().unwrap_or(ASTNode::new_noop()));
+        self.verify(TokenType::RPR);
+        self.advance();
+        self.verify(TokenType::LBR);
+        self.advance();
+        let mut bodies : Vec<ASTNode> = Vec::new();
+        bodies.push(self.parse_compound().unwrap_or(ASTNode::new_noop()));
+        self.verify(TokenType::RBR);
+        self.advance();
+        while self.curr_token.is_some() && self.curr_token?.kind == TokenType::ID("else".to_owned()) {
+            self.advance(); //past 'else'
+            if self.curr_token?.kind == TokenType::ID("if".to_owned()) {
+                self.advance(); //past 'if'
+                self.verify(TokenType::LPR);
+                self.advance();
+                conds.push(self.parse_comp_expr().unwrap_or(ASTNode::new_noop()));
+                self.verify(TokenType::RPR);
+                self.advance();
+                self.verify(TokenType::LBR);
+                self.advance();
+                bodies.push(self.parse_compound().unwrap_or(ASTNode::new_noop()));
+                self.verify(TokenType::RBR);
+                self.advance();
+
+            } else {
+                break;
+            }
+        };
+        let mut else_body = None;
+        if self.prev_token?.kind == TokenType::ID("else".to_owned()) {
+            self.verify(TokenType::LBR);
+            self.advance();
+            else_body = Some(Box::new(self.parse_compound().unwrap_or(ASTNode::new_noop())));
+            self.verify(TokenType::RBR);
+            self.advance();
+        }
+        Some(ASTNode::new(AST::IF { conditions : conds, bodies, else_body }, e))
     }
     //DONE
     pub fn parse_string(&mut self) -> Option<ASTNode> {

@@ -44,6 +44,14 @@ pub enum AST {
         name : String,
         args : Vec<ASTNode>
     },
+    RETURN {
+        value : Box<ASTNode>
+    },
+    IF {
+        conditions : Vec<ASTNode>,
+        bodies : Vec<ASTNode>,
+        else_body : Option<Box<ASTNode>>
+    },
     COMPOUND {
         compound_value : Vec<ASTNode>
     },

@@ -131,6 +131,11 @@ impl<'a> Parser<'a> {
                     let ast_body = self.parse_mono().unwrap_or(ASTNode::new_noop());
                     Some(ASTNode::new(AST::UNOP { op: TokenType::MIN, body: Box::new(ast_body)}, tok.einfo.clone()))
                 }
+                TokenType::NOT => {
+                    self.advance();
+                    let ast_body = self.parse_mono().unwrap_or(ASTNode::new_noop());
+                    Some(ASTNode::new(AST::UNOP { op: TokenType::NOT, body: Box::new(ast_body)}, tok.einfo.clone()))
+                }
                 _ => None
             }
         } else {

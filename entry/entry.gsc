@@ -1,4 +1,4 @@
-if ( 1 ) {
-    write("chodo");
+assign assign = 1;
+funct funct() {
+
 };
-write("hello!");

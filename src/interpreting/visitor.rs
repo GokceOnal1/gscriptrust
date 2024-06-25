@@ -8,11 +8,16 @@ use std::rc::Rc;
 
 pub struct Visitor {
     current_scope : Scope,
-    pub errorstack : Rc<RefCell<ErrorStack>>
+    pub errorstack : Rc<RefCell<ErrorStack>>,
+    keywords : Vec<String>
 }
 impl Visitor {
     pub fn new(errorstack : Rc<RefCell<ErrorStack>>) -> Visitor {
-        Visitor { errorstack, current_scope : Scope::new(None) }
+        Visitor { 
+            errorstack, 
+            current_scope : Scope::new(None), 
+            keywords : vec!["assign", "funct", "if", "param"].iter().map(|x| x.to_string()).collect()
+        }
     }
     pub fn visit(&mut self, node : &ASTNode) -> ASTNode {
         match &node.kind {
@@ -37,137 +42,232 @@ impl Visitor {
             _ => return ASTNode::new_noop()
         }
     }
-    //fix this later... (this is too messy)
+    //visit_binop helper function
+    fn node_to_int(&mut self, node : &ASTNode) -> Option<i32> {
+        match node.kind {
+            AST::FLOAT{ float_value } => Some(float_value as i32),
+            AST::INT{ int_value } => Some(int_value),
+            _ => None
+        }
+    }
+    //visit_binop helper function
+    fn node_to_float(&mut self, node : &ASTNode) -> Option<f32> {
+        match node.kind {
+            AST::FLOAT{float_value} => Some(float_value),
+            AST::INT{int_value} => Some(int_value as f32),
+            _ => { /*println!("{:?}", node.kind);*/ None }
+        }
+    }
     pub fn visit_binop(&mut self, node : &ASTNode) -> ASTNode {
         match &node.kind {
             AST::BINOP{ left, op, right} => {
                 let nleft = self.visit(left);
                 let nright = self.visit(right);
-                match (nleft.kind, op, nright.kind) {
-                    (AST::INT{ int_value: x } , TokenType::DEQL, AST::INT{ int_value : y }) => {
-                        return ASTNode::new(AST::BOOL{ bool_value : x == y}, node.einfo.clone())
-                    },
-                    (AST::INT{ int_value: x } , TokenType::DEQL, AST::FLOAT{ float_value : y }) => {
-                        return ASTNode::new(AST::BOOL{ bool_value : x as f32 == y}, node.einfo.clone())
-                    },
-                    (AST::FLOAT{ float_value: x } , TokenType::DEQL, AST::INT{ int_value : y }) => {
-                        return ASTNode::new(AST::BOOL{ bool_value : x == y as f32}, node.einfo.clone())
-                    },
-                    (AST::FLOAT{ float_value: x } , TokenType::DEQL, AST::FLOAT{ float_value : y }) => {
-                        return ASTNode::new(AST::BOOL{ bool_value : x == y}, node.einfo.clone())
-                    },
-                    (AST::INT{ int_value: x } , TokenType::PLS, AST::INT{ int_value : y }) => {
-                        return ASTNode::new(AST::INT{ int_value : x + y}, node.einfo.clone())
-                    },
-                    (AST::INT{ int_value: x } , TokenType::PLS, AST::FLOAT{ float_value : y }) => {
-                        return ASTNode::new(AST::FLOAT{ float_value : x as f32 + y}, node.einfo.clone())
-                    },
-                    (AST::FLOAT{ float_value: x } , TokenType::PLS, AST::INT{ int_value : y }) => {
-                        return ASTNode::new(AST::FLOAT{ float_value : x + y as f32}, node.einfo.clone())
-                    },
-                    (AST::FLOAT{ float_value: x } , TokenType::PLS, AST::FLOAT{ float_value : y }) => {
-                        return ASTNode::new(AST::FLOAT{ float_value : x + y}, node.einfo.clone())
-                    },
-                    (AST::INT{ int_value: x } , TokenType::MIN, AST::INT{ int_value : y }) => {
-                        return ASTNode::new(AST::INT{ int_value : x - y}, node.einfo.clone())
-                    },
-                    (AST::INT{ int_value: x } , TokenType::MIN, AST::FLOAT{ float_value : y }) => {
-                        return ASTNode::new(AST::FLOAT{ float_value : x as f32 - y}, node.einfo.clone())
-                    },
-                    (AST::FLOAT{ float_value: x } , TokenType::MIN, AST::INT{ int_value : y }) => {
-                        return ASTNode::new(AST::FLOAT{ float_value : x - y as f32}, node.einfo.clone())
-                    },
-                    (AST::FLOAT{ float_value: x } , TokenType::MIN, AST::FLOAT{ float_value : y }) => {
-                        return ASTNode::new(AST::FLOAT{ float_value : x - y}, node.einfo.clone())
-                    },
-                    (AST::INT{ int_value: x } , TokenType::MUL, AST::INT{ int_value : y }) => {
-                        return ASTNode::new(AST::INT{ int_value : x * y}, node.einfo.clone())
-                    },
-                    (AST::INT{ int_value: x } , TokenType::MUL, AST::FLOAT{ float_value : y }) => {
-                        return ASTNode::new(AST::FLOAT{ float_value : x as f32 * y}, node.einfo.clone())
-                    },
-                    (AST::FLOAT{ float_value: x } , TokenType::MUL, AST::INT{ int_value : y }) => {
-                        return ASTNode::new(AST::FLOAT{ float_value : x * y as f32}, node.einfo.clone())
-                    },
-                    (AST::FLOAT{ float_value: x } , TokenType::MUL, AST::FLOAT{ float_value : y }) => {
-                        return ASTNode::new(AST::FLOAT{ float_value : x * y}, node.einfo.clone())
-                    },
-                    (AST::INT{ int_value: x } , TokenType::DIV, AST::INT{ int_value : y }) => {
-                        if y == 0 {
-                            self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::DivideByZeroError, "Cannot divide by zero", node.einfo.clone()));
-                            self.errorstack.borrow().terminate_gs();
-                            return ASTNode::new_noop();
+                match op {
+                    TokenType::PLS => {
+                        if matches!(nleft.kind, AST::INT{..}) && matches!(nright.kind, AST::INT{..}) {
+                            return ASTNode::new(AST::INT{ int_value: self.node_to_int(&nleft).unwrap() + self.node_to_int(&nright).unwrap()}, node.einfo.clone());
                         } else {
-                            return ASTNode::new(AST::INT{ int_value : x / y}, node.einfo.clone())
-                        }    
+                            let fleft = self.node_to_float(&nleft);
+                            let fright = self.node_to_float(&nright);
+                            if fleft.is_none() || fright.is_none() {
+                                return ASTNode::new_noop();
+                            } else {
+                                return ASTNode::new(AST::FLOAT { float_value: fleft.unwrap() + fright.unwrap() }, node.einfo.clone());
+                            }
+                        }
                     },
-                    (AST::INT{ int_value: x } , TokenType::DIV, AST::FLOAT{ float_value : y }) => {
-                        if y == 0.0 {
-                            self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::DivideByZeroError, "Cannot divide by zero", node.einfo.clone()));
-                            self.errorstack.borrow().terminate_gs();
-                            return ASTNode::new_noop();
+                    TokenType::MIN => {
+                        if matches!(nleft.kind, AST::INT{..}) && matches!(nright.kind, AST::INT{..}) {
+                            return ASTNode::new(AST::INT{ int_value: self.node_to_int(&nleft).unwrap() - self.node_to_int(&nright).unwrap()}, node.einfo.clone());
+                        
                         } else {
-                            return ASTNode::new(AST::FLOAT{ float_value : x as f32 / y}, node.einfo.clone())
-                        }    
+                            let fleft = self.node_to_float(&nleft);
+                            let fright = self.node_to_float(&nright);
+                            if fleft.is_none() || fright.is_none() {
+                                println!("aris");
+                                return ASTNode::new_noop();
+                            } else {
+                                return ASTNode::new(AST::FLOAT { float_value: fleft.unwrap() - fright.unwrap() }, node.einfo.clone());
+                            }
+                        }
                     },
-                    (AST::FLOAT{ float_value: x } , TokenType::DIV, AST::INT{ int_value : y }) => {
-                        if y == 0 {
-                            self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::DivideByZeroError, "Cannot divide by zero", node.einfo.clone()));
-                            self.errorstack.borrow().terminate_gs();
-                            return ASTNode::new_noop();
+                    TokenType::MUL => {
+                        if matches!(nleft.kind, AST::INT{..}) && matches!(nright.kind, AST::INT{..}) {
+                            return ASTNode::new(AST::INT{ int_value: self.node_to_int(&nleft).unwrap() * self.node_to_int(&nright).unwrap()}, node.einfo.clone());
                         } else {
-                            return ASTNode::new(AST::FLOAT{ float_value : x / y as f32}, node.einfo.clone())
-                        }    
+                            let fleft = self.node_to_float(&nleft);
+                            let fright = self.node_to_float(&nright);
+                            if fleft.is_none() || fright.is_none() {
+                                return ASTNode::new_noop();
+                            } else {
+                                return ASTNode::new(AST::FLOAT { float_value: fleft.unwrap() * fright.unwrap() }, node.einfo.clone());
+                            }
+                        }
                     },
-                    (AST::FLOAT{ float_value: x } , TokenType::DIV, AST::FLOAT{ float_value : y }) => {
-                        if y == 0.0 {
-                            self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::DivideByZeroError, "Cannot divide by zero", node.einfo.clone()));
-                            self.errorstack.borrow().terminate_gs();
-                            return ASTNode::new_noop();
+                    TokenType::DIV => {
+                        if matches!(nleft.kind, AST::INT{..}) && matches!(nright.kind, AST::INT{..}) {
+                            let fright = self.node_to_int(&nright).unwrap();
+                            if fright == 0 {
+                                self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::DivideByZeroError, "Cannot divide by zero", nright.einfo.clone()));
+                                self.errorstack.borrow().terminate_gs();
+                                return ASTNode::new_noop();
+                            }
+                            return ASTNode::new(AST::INT{ int_value: self.node_to_int(&nleft).unwrap() / fright}, node.einfo.clone());
                         } else {
-                            return ASTNode::new(AST::FLOAT{ float_value : x / y}, node.einfo.clone())
-                        }    
+                            let fleft = self.node_to_float(&nleft);
+                            let fright = self.node_to_float(&nright);
+                            if fleft.is_none() || fright.is_none() {
+                                return ASTNode::new_noop();
+                            } else {
+                                if fright.unwrap() == 0.0 {
+                                    self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::DivideByZeroError, "Cannot divide by zero", nright.einfo.clone()));
+                                    self.errorstack.borrow().terminate_gs();
+                                    return ASTNode::new_noop();
+                                }
+                                return ASTNode::new(AST::FLOAT { float_value: fleft.unwrap() / fright.unwrap() }, node.einfo.clone());
+                            }
+                        }
                     },
-                    (AST::FLOAT{ float_value: x } , TokenType::MOD, AST::FLOAT{ float_value : y }) => {
-                        if y == 0.0 {
-                            self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::DivideByZeroError, "Cannot divide by zero", node.einfo.clone()));
-                            self.errorstack.borrow().terminate_gs();
-                            return ASTNode::new_noop();
+                    TokenType::MOD => {
+                        if matches!(nleft.kind, AST::INT{..}) && matches!(nright.kind, AST::INT{..}) {
+                            let fright = self.node_to_int(&nright).unwrap();
+                            if fright == 0 {
+                                self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::DivideByZeroError, "Cannot divide by zero", nright.einfo.clone()));
+                                self.errorstack.borrow().terminate_gs();
+                                return ASTNode::new_noop();
+                            }
+                            return ASTNode::new(AST::INT{ int_value: self.node_to_int(&nleft).unwrap() % fright}, node.einfo.clone());
                         } else {
-                            return ASTNode::new(AST::FLOAT{ float_value : x % y}, node.einfo.clone())
-                        }    
+                            let fleft = self.node_to_float(&nleft);
+                            let fright = self.node_to_float(&nright);
+                            if fleft.is_none() || fright.is_none() {
+                                return ASTNode::new_noop();
+                            } else {
+                                if fright.unwrap() == 0.0 {
+                                    self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::DivideByZeroError, "Cannot divide by zero", nright.einfo.clone()));
+                                    self.errorstack.borrow().terminate_gs();
+                                    return ASTNode::new_noop();
+                                }
+                                return ASTNode::new(AST::FLOAT { float_value: fleft.unwrap() % fright.unwrap() }, node.einfo.clone());
+                            }
+                        }
                     },
-                    (AST::INT{ int_value: x } , TokenType::MOD, AST::INT{ int_value : y }) => {
-                        if y == 0 {
-                            self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::DivideByZeroError, "Cannot divide by zero", node.einfo.clone()));
-                            self.errorstack.borrow().terminate_gs();
-                            return ASTNode::new_noop();
+                    TokenType::DEQL => {
+                        if matches!(nleft.kind, AST::INT{..}) && matches!(nright.kind, AST::INT{..}) {
+                            return ASTNode::new(AST::BOOL{ bool_value : self.node_to_int(&nleft).unwrap() == self.node_to_int(&nright).unwrap()}, node.einfo.clone());   
                         } else {
-                            return ASTNode::new(AST::INT{ int_value : x % y}, node.einfo.clone())
-                        }    
+                            let fleft = self.node_to_float(&nleft);
+                            let fright = self.node_to_float(&nright);
+                            if fleft.is_none() || fright.is_none() {
+                                match (nleft.kind, nright.kind) {
+                                    (AST::BOOL{bool_value : x}, AST::BOOL{bool_value : y}) => {
+                                        return ASTNode::new(AST::BOOL { bool_value: x == y }, node.einfo.clone());
+                                    },
+                                    (AST::STRING{str_value: x}, AST::STRING{str_value : y}) => {
+                                        return ASTNode::new(AST::BOOL { bool_value: x == y}, node.einfo.clone());
+                                    },
+                                    _ => return ASTNode::new_noop()
+                                }
+                            } else {
+                                return ASTNode::new(AST::BOOL { bool_value: fleft.unwrap() == fright.unwrap() }, node.einfo.clone());
+                            }
+                        }
                     },
-                    (AST::INT{ int_value: x } , TokenType::MOD, AST::FLOAT{ float_value : y }) => {
-                        if y == 0.0 {
-                            self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::DivideByZeroError, "Cannot divide by zero", node.einfo.clone()));
-                            self.errorstack.borrow().terminate_gs();
-                            return ASTNode::new_noop();
+                    TokenType::NEQ => {
+                        if matches!(nleft.kind, AST::INT{..}) && matches!(nright.kind, AST::INT{..}) {
+                            return ASTNode::new(AST::BOOL{ bool_value : self.node_to_int(&nleft).unwrap() != self.node_to_int(&nright).unwrap()}, node.einfo.clone());
                         } else {
-                            return ASTNode::new(AST::FLOAT{ float_value : x as f32 % y}, node.einfo.clone())
-                        }    
+                            let fleft = self.node_to_float(&nleft);
+                            let fright = self.node_to_float(&nright);
+                            if fleft.is_none() || fright.is_none() {
+                                match (nleft.kind, nright.kind) {
+                                    (AST::BOOL{bool_value : x}, AST::BOOL{bool_value : y}) => {
+                                        return ASTNode::new(AST::BOOL { bool_value: x != y }, node.einfo.clone());
+                                    },
+                                    (AST::STRING{str_value: x}, AST::STRING{str_value : y}) => {
+                                        return ASTNode::new(AST::BOOL { bool_value: x != y}, node.einfo.clone());
+                                    },
+                                    _ => return ASTNode::new_noop()
+                                }
+                            } else {
+                                return ASTNode::new(AST::BOOL { bool_value: fleft.unwrap() != fright.unwrap() }, node.einfo.clone());
+                            }
+                        }
                     },
-                    (AST::FLOAT{ float_value: x } , TokenType::MOD, AST::INT{ int_value : y }) => {
-                        if y == 0 {
-                            self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::DivideByZeroError, "Cannot divide by zero", node.einfo.clone()));
-                            self.errorstack.borrow().terminate_gs();
-                            return ASTNode::new_noop();
+                    TokenType::LT => {
+                        if matches!(nleft.kind, AST::INT{..}) && matches!(nright.kind, AST::INT{..}) {
+                            return ASTNode::new(AST::BOOL{ bool_value: self.node_to_int(&nleft).unwrap() < self.node_to_int(&nright).unwrap()}, node.einfo.clone());
                         } else {
-                            return ASTNode::new(AST::FLOAT{ float_value : x % y as f32}, node.einfo.clone())
-                        }    
+                            let fleft = self.node_to_float(&nleft);
+                            let fright = self.node_to_float(&nright);
+                            if fleft.is_none() || fright.is_none() {
+                                return ASTNode::new_noop();
+                            } else {
+                                return ASTNode::new(AST::BOOL { bool_value: fleft.unwrap() < fright.unwrap() }, node.einfo.clone());
+                            }
+                        }
                     },
-                    _ => return ASTNode::new_noop()
+                    TokenType::LTE => {
+                        if matches!(nleft.kind, AST::INT{..}) && matches!(nright.kind, AST::INT{..}) {
+                            return ASTNode::new(AST::BOOL{ bool_value: self.node_to_int(&nleft).unwrap() <= self.node_to_int(&nright).unwrap()}, node.einfo.clone());
+                        } else {
+                            let fleft = self.node_to_float(&nleft);
+                            let fright = self.node_to_float(&nright);
+                            if fleft.is_none() || fright.is_none() {
+                                return ASTNode::new_noop();
+                            } else {
+                                return ASTNode::new(AST::BOOL { bool_value: fleft.unwrap() <= fright.unwrap() }, node.einfo.clone());
+                            }
+                        }
+                    },
+                    TokenType::GT => {
+                        if matches!(nleft.kind, AST::INT{..}) && matches!(nright.kind, AST::INT{..}) {
+                            return ASTNode::new(AST::BOOL{ bool_value: self.node_to_int(&nleft).unwrap() > self.node_to_int(&nright).unwrap()}, node.einfo.clone());
+                        } else {
+                            let fleft = self.node_to_float(&nleft);
+                            let fright = self.node_to_float(&nright);
+                            if fleft.is_none() || fright.is_none() {
+                                return ASTNode::new_noop();
+                            } else {
+                                return ASTNode::new(AST::BOOL { bool_value: fleft.unwrap() > fright.unwrap() }, node.einfo.clone());
+                            }
+                        }
+                    },
+                    TokenType::GTE => {
+                        if matches!(nleft.kind, AST::INT{..}) && matches!(nright.kind, AST::INT{..}) {
+                            return ASTNode::new(AST::BOOL{ bool_value: self.node_to_int(&nleft).unwrap() >= self.node_to_int(&nright).unwrap()}, node.einfo.clone());
+                        } else {
+                            let fleft = self.node_to_float(&nleft);
+                            let fright = self.node_to_float(&nright);
+                            if fleft.is_none() || fright.is_none() {
+                                return ASTNode::new_noop();
+                            } else {
+                                return ASTNode::new(AST::BOOL { bool_value: fleft.unwrap() >= fright.unwrap() }, node.einfo.clone());
+                            }
+                        }
+                    },
+                    TokenType::AND => {
+                        match (nleft.kind, nright.kind) {
+                            (AST::BOOL{bool_value: x}, AST::BOOL{bool_value: y}) => {
+                                return ASTNode::new(AST::BOOL{bool_value: x && y}, node.einfo.clone());
+                            },
+                            _ => return ASTNode::new_noop()
+                        }
+                    },
+                    TokenType::OR => {
+                        match (nleft.kind, nright.kind) {
+                            (AST::BOOL{bool_value: x}, AST::BOOL{bool_value: y}) => {
+                                return ASTNode::new(AST::BOOL{bool_value: x || y}, node.einfo.clone());
+                            },
+                            _ => return ASTNode::new_noop()
+                        }
+                    },
+                    
+                    _ => { return ASTNode::new_noop() }
                 }
-            },
-            _ => return ASTNode::new_noop()
+             },
+             _ => return ASTNode::new_noop()
         }
 
     }
@@ -181,6 +281,9 @@ impl Visitor {
                     }
                     (TokenType::MIN, AST::FLOAT{float_value}) => {
                         return ASTNode::new(AST::FLOAT{float_value : -float_value}, node.einfo.clone());
+                    }
+                    (TokenType::NOT, AST::BOOL{bool_value}) => {
+                        return ASTNode::new(AST::BOOL{bool_value: !bool_value}, node.einfo.clone());
                     }
                     _ => return ASTNode::new_noop()
                 }
@@ -258,7 +361,11 @@ impl Visitor {
     }
     pub fn visit_function_definition(&mut self, node : &ASTNode) -> ASTNode {
         match &node.kind {
-            AST::FUNC_DEF { .. } => {
+            AST::FUNC_DEF { name, .. } => {
+                if self.keywords.contains(name) {
+                    self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::FunctionDefinitionError, "Illegal use of keyword for function definition", node.einfo.clone()));
+                    return ASTNode::new_noop();
+                }
                 if let Err(s) = self.current_scope.add_func(node) {
                     self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::FunctionDefinitionError, s.as_str(), node.einfo.clone()));
                     self.errorstack.borrow().terminate_gs();
@@ -271,6 +378,10 @@ impl Visitor {
     pub fn visit_variable_definition(&mut self, node : &ASTNode) -> ASTNode {
         match &node.kind {
             AST::VAR_DEF { name, value } => {
+                if self.keywords.contains(name) {
+                    self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::VariableDefinitionError, "Illegal use of keyword for variable definition", node.einfo.clone()));
+                    return ASTNode::new_noop();
+                }
                 let val = self.visit(value);
                 let var_def = ASTNode::new(AST::VAR_DEF { name: name.to_string(), value: Box::new(val) }, node.einfo.clone());
                 let res = self.current_scope.add_var(&var_def );

@@ -1,4 +1,1 @@
-assign assign = 1;
-funct funct() {
-
-};
+write(1/(1*10 + -1*10));

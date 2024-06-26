@@ -12,6 +12,7 @@ pub enum ETypes {
     FunctionDefinitionError,
     FunctionError,
     ConditionalError,
+    TypeError,
     IdentifierError
 }
 impl std::fmt::Display for ETypes {
@@ -26,6 +27,7 @@ impl std::fmt::Display for ETypes {
             Self::FunctionDefinitionError => write!(f, "FunctionDefinitionError"),
             Self::FunctionError => write!(f, "FunctionError"),
             Self::ConditionalError => write!(f, "ConditionalError"),
+            Self::TypeError => write!(f, "TypeError"),
             Self::IdentifierError => write!(f, "IdentifierError")
         }
     }

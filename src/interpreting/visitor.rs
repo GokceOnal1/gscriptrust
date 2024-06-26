@@ -165,6 +165,7 @@ impl Visitor {
                                         return ASTNode::new(AST::BOOL { bool_value: x == y }, node.einfo.clone());
                                     },
                                     (AST::STRING{str_value: x}, AST::STRING{str_value : y}) => {
+                                        //println!("{} == {}", x, y);
                                         return ASTNode::new(AST::BOOL { bool_value: x == y}, node.einfo.clone());
                                     },
                                     _ => return ASTNode::new_noop()
@@ -296,6 +297,7 @@ impl Visitor {
             AST::FUNC_CALL { name, args } => {
                 match name.as_str() {
                     "write" => return self.std_func_write(args),
+                    "read" => return self.std_func_read(node, args),
                     _ => {}
                 }
                 //cloning here because of borrowing rules
@@ -450,11 +452,35 @@ impl Visitor {
             _ => ASTNode::new_noop()
         }
     }
-    //MOVE THIS TO DIFFERENT FILE LATER
+    pub fn node_to_string(&mut self, node : &ASTNode) -> String {
+        match &node.kind {
+            AST::STRING{str_value} => str_value.clone(),
+            AST::INT { int_value} => int_value.to_string(),
+            AST::FLOAT { float_value} => float_value.to_string(),
+            AST::BOOL {bool_value} => bool_value.to_string(),
+            AST::NOOP => "no operation".to_string(),
+            _ => "undefined".to_string()
+        }
+    }
+    //MOVE THESE TO A DIFFERENT FILE LATER
+    //??
     pub fn std_func_write(&mut self, args : &Vec<ASTNode> ) -> ASTNode {
         for arg in args {
-            self.visit(arg).print()
+            let ast = self.visit(arg);
+            print!("{}", self.node_to_string(&ast));
         }
+        println!();
         ASTNode::new_noop()
+    }
+    pub fn std_func_read(&mut self, node : &ASTNode, args : &Vec<ASTNode>) -> ASTNode {
+        if args.len() != 0 {
+            self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::FunctionError, format!("Function 'read' requires 0 argument(s), not {}", args.len()).as_str(), node.einfo.clone()));
+            return ASTNode::new_noop();
+        } else {
+            let mut input = String::new();
+            let _ = std::io::stdin().read_line(&mut input).unwrap();
+            let input = input.trim_end().to_string();
+            return ASTNode::new(AST::STRING{str_value : input}, node.einfo.clone());
+        }
     }
 }

@@ -16,7 +16,7 @@ impl Visitor {
         Visitor { 
             errorstack, 
             current_scope : Scope::new(None), 
-            keywords : vec!["assign", "funct", "if", "param"].iter().map(|x| x.to_string()).collect()
+            keywords : vec!["assign", "funct", "if", "param", "return", "while", "true", "false"].iter().map(|x| x.to_string()).collect()
         }
     }
     pub fn visit(&mut self, node : &ASTNode) -> ASTNode {
@@ -25,11 +25,13 @@ impl Visitor {
             AST::BINOP{..} => { return self.visit_binop(node); }
             AST::UNOP{..} => { return self.visit_unop(node); }
             AST::VAR_DEF{..} => { return self.visit_variable_definition(node); }
+            AST::VAR_REASSIGN{..} => { return self.visit_variable_reassign(node); }
             AST::VAR{..} => { return self.visit_variable(node); }
             AST::FUNC_CALL { .. } => { return self.visit_function_call(node); },
             AST::FUNC_DEF {..} => { return self.visit_function_definition(node); },
             AST::RETURN{..} => { return self.visit_return(node); },
             AST::IF{..} => { return self.visit_if(node); }
+            AST::WHILE{..} => { return self.visit_while(node); }
             AST::COMPOUND{ compound_value } => { 
                 for ast in compound_value { 
                     let res = self.visit(ast); 
@@ -298,6 +300,7 @@ impl Visitor {
                 match name.as_str() {
                     "write" => return self.std_func_write(args),
                     "read" => return self.std_func_read(node, args),
+                    "ast_debug" => return self.std_func_debug(args), 
                     _ => {}
                 }
                 //cloning here because of borrowing rules
@@ -397,6 +400,21 @@ impl Visitor {
             _ => ASTNode::new_noop()
         }
     }
+    pub fn visit_variable_reassign(&mut self, node : &ASTNode) -> ASTNode {
+        match &node.kind {
+            AST::VAR_REASSIGN { name, value } => {
+                let val = self.visit(value);
+                let var_def = ASTNode::new(AST::VAR_DEF { name: name.clone(), value: Box::new(val) }, node.einfo.clone());
+                let res = self.current_scope.set_var(name.clone(), &var_def);
+                if let Err(s) = res {
+                    self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::VariableDefinitionError, s.as_str(), node.einfo.clone()));
+                    self.errorstack.borrow().terminate_gs();
+                }
+                var_def
+            },
+            _ => ASTNode::new_noop()
+        }
+    }
     pub fn visit_variable(&mut self, node : &ASTNode) -> ASTNode {
         match &node.kind {
             AST::VAR { name } => {
@@ -452,6 +470,42 @@ impl Visitor {
             _ => ASTNode::new_noop()
         }
     }
+    pub fn visit_while(&mut self, node : &ASTNode) -> ASTNode {
+        match &node.kind {
+            AST::WHILE { condition, body } => {
+                // -- ISSUE --
+                // scope is doing weird shit
+                // make parent Rc RefCell instead of owned
+                // -- END ISSUE --
+                // -- SOLUTION --
+                // Take the memory of the parent of the temporary scope to reuse it on future iterations
+                //kind of works for now but it might be a better idea to make parent an Rc Refcell reference instead of owned 
+                    let mut origin = self.current_scope.clone();
+                    loop {
+                        let temp_par_scope = origin.clone();
+                        self.current_scope = Scope::new(Some(Box::new(temp_par_scope)));
+                        let cond = self.visit(condition);
+                        let cond_res = match cond.kind {
+                            AST::BOOL { bool_value } => { bool_value },
+                            _ => { return ASTNode::new_noop(); } //invalid conditional expression error
+                        };
+                        if !cond_res {
+                            break;
+                        }
+                        let res = self.visit(body);
+                        if let AST::RETURN{..} = res.kind {
+                            self.current_scope = origin;
+                            return res;
+                        }
+
+                        let origin_1 = std::mem::take(&mut self.current_scope.parent);
+                        origin = *origin_1.unwrap();
+                    }
+                    ASTNode::new_noop()
+            },
+            _ => return ASTNode::new_noop()
+        }
+    }
     pub fn node_to_string(&mut self, node : &ASTNode) -> String {
         match &node.kind {
             AST::STRING{str_value} => str_value.clone(),
@@ -464,6 +518,12 @@ impl Visitor {
     }
     //MOVE THESE TO A DIFFERENT FILE LATER
     //??
+    pub fn std_func_debug(&mut self, args : &Vec<ASTNode>) -> ASTNode {
+        for arg in args {
+            println!("{:#?}", arg);
+        }
+        ASTNode::new_noop()
+    }
     pub fn std_func_write(&mut self, args : &Vec<ASTNode> ) -> ASTNode {
         for arg in args {
             let ast = self.visit(arg);

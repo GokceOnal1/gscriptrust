@@ -1,1 +1,6 @@
-write(1/(1*10 + -1*10));
+assign i = 0;
+while( i < 10 ) {
+    i = i + 1;
+    write(i);
+};
+write(i);

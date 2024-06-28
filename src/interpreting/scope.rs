@@ -2,9 +2,9 @@ use std::collections::HashMap;
 use crate::ast::*;
 
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct Scope {
-    parent : Option<Box<Scope>>,
+    pub parent : Option<Box<Scope>>,
     variables : HashMap<String, ASTNode>,
     functions : HashMap<String, ASTNode>,
 }

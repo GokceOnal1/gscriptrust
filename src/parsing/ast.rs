@@ -52,6 +52,10 @@ pub enum AST {
         bodies : Vec<ASTNode>,
         else_body : Option<Box<ASTNode>>
     },
+    WHILE {
+        condition : Box<ASTNode>,
+        body : Box<ASTNode>
+    },
     COMPOUND {
         compound_value : Vec<ASTNode>
     },

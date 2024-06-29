@@ -205,6 +205,7 @@ impl<'a> Parser<'a> {
                     "return" => self.parse_return(),
                     "if" => self.parse_if(),
                     "while" => self.parse_while(),
+                    "break" => self.parse_break(),
                     "true" => {
                         let res = Some(ASTNode::new(AST::BOOL{ bool_value : true }, self.curr_token?.einfo.clone()));
                         self.advance();
@@ -389,6 +390,7 @@ impl<'a> Parser<'a> {
         }
         Some(ASTNode::new(AST::IF { conditions : conds, bodies, else_body }, e))
     }
+    //DONE
     pub fn parse_while(&mut self) -> Option<ASTNode> {  
         let e = self.curr_token?.einfo.clone();
         self.advance(); //past 'while'
@@ -403,6 +405,11 @@ impl<'a> Parser<'a> {
         self.verify(TokenType::RBR);
         self.advance();
         Some(ASTNode::new(AST::WHILE { condition: Box::new(cond), body: Box::new(b)}, e))
+    }
+    pub fn parse_break(&mut self) -> Option<ASTNode> {
+        let e = self.curr_token?.einfo.clone();
+        self.advance(); //past 'break'
+        Some(ASTNode::new(AST::BREAK, e))
     }
     //DONE
     pub fn parse_string(&mut self) -> Option<ASTNode> {

@@ -16,12 +16,12 @@ impl Visitor {
         Visitor { 
             errorstack, 
             current_scope : Scope::new(None), 
-            keywords : vec!["assign", "funct", "if", "param", "return", "while", "true", "false"].iter().map(|x| x.to_string()).collect()
+            keywords : vec!["assign", "funct", "if", "param", "return", "while", "break", "true", "false"].iter().map(|x| x.to_string()).collect()
         }
     }
     pub fn visit(&mut self, node : &ASTNode) -> ASTNode {
         match &node.kind {
-            AST::STRING{..} | AST::INT{..} | AST::FLOAT{..} | AST::BOOL{..} => { return node.clone(); } ,
+            AST::STRING{..} | AST::INT{..} | AST::FLOAT{..} | AST::BOOL{..} | AST::BREAK => { return node.clone(); } ,
             AST::BINOP{..} => { return self.visit_binop(node); }
             AST::UNOP{..} => { return self.visit_unop(node); }
             AST::VAR_DEF{..} => { return self.visit_variable_definition(node); }
@@ -35,7 +35,7 @@ impl Visitor {
             AST::COMPOUND{ compound_value } => { 
                 for ast in compound_value { 
                     let res = self.visit(ast); 
-                    if let AST::RETURN{..} = res.kind {
+                    if let AST::RETURN{..} | AST::BREAK = res.kind {
                         return res;
                     }
                 }
@@ -445,7 +445,7 @@ impl Visitor {
                         AST::BOOL { bool_value } => {
                             if *bool_value {
                                 let res = self.visit(body);
-                                if let AST::RETURN{..} = res.kind {
+                                if let AST::RETURN{..} | AST::BREAK = res.kind {
                                     return res;
                                 } else {
                                     return ASTNode::new_noop();
@@ -457,7 +457,7 @@ impl Visitor {
                 }
                 if let Some(b) = else_body {
                     let res = self.visit(&b);
-                    if let AST::RETURN{..} = res.kind {
+                    if let AST::RETURN{..} | AST::BREAK = res.kind {
                         return res;
                     } else {
                         return ASTNode::new_noop();
@@ -496,11 +496,15 @@ impl Visitor {
                         if let AST::RETURN{..} = res.kind {
                             self.current_scope = origin;
                             return res;
+                        } else if let AST::BREAK = res.kind {
+                            self.current_scope = origin;
+                            return ASTNode::new_noop();
                         }
 
                         let origin_1 = std::mem::take(&mut self.current_scope.parent);
                         origin = *origin_1.unwrap();
                     }
+                    self.current_scope = origin;
                     ASTNode::new_noop()
             },
             _ => return ASTNode::new_noop()

@@ -1,3 +1,4 @@
+\ basic rock paper scissors \
 write("welcome to rock paper scissors");
 
 assign input = "none";
@@ -16,3 +17,4 @@ while(input != "e") {
         write("invalid input");
     };
 };
+\ end rock paper scissors example \

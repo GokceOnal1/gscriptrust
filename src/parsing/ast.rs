@@ -56,6 +56,7 @@ pub enum AST {
         condition : Box<ASTNode>,
         body : Box<ASTNode>
     },
+    BREAK,
     COMPOUND {
         compound_value : Vec<ASTNode>
     },

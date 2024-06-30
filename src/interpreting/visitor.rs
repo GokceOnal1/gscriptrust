@@ -24,6 +24,9 @@ impl Visitor {
             AST::STRING{..} | AST::INT{..} | AST::FLOAT{..} | AST::BOOL{..} | AST::BREAK => { return node.clone(); } ,
             AST::BINOP{..} => { return self.visit_binop(node); }
             AST::UNOP{..} => { return self.visit_unop(node); }
+            AST::LIST{..} => {return self.visit_list(node); }
+            AST::INDEX{..} => { return self.visit_index(node); }
+            AST::LIST_REASSIGN { .. } => { return self.visit_list_reassign(node); }
             AST::VAR_DEF{..} => { return self.visit_variable_definition(node); }
             AST::VAR_REASSIGN{..} => { return self.visit_variable_reassign(node); }
             AST::VAR{..} => { return self.visit_variable(node); }
@@ -516,9 +519,69 @@ impl Visitor {
             AST::INT { int_value} => int_value.to_string(),
             AST::FLOAT { float_value} => float_value.to_string(),
             AST::BOOL {bool_value} => bool_value.to_string(),
+            AST::LIST { contents } => {
+                let mut s = String::new();
+                let mut b = false;
+                s.push('[');
+                for c in contents {
+                    if b {
+                        s.push(',');
+                        s.push(' ');
+                    }
+                    b = true;
+                    s.push_str(&self.node_to_string(c));
+                }
+                s.push(']');
+                s
+            }
             AST::NOOP => "no operation".to_string(),
             _ => "undefined".to_string()
         }
+    }
+    pub fn visit_list(&mut self, node : &ASTNode) -> ASTNode {
+        match &node.kind {
+            AST::LIST{contents} => {
+                ASTNode::new(AST::LIST{contents : contents.iter().map(|x| self.visit(x)).collect()}, node.einfo.clone())
+            },
+            _ => ASTNode::new_noop()
+        }
+    }
+    pub fn visit_index(&mut self, node : &ASTNode) -> ASTNode {
+        match &node.kind {
+            AST::INDEX{target, indices} => {
+                let mut combined_target = self.visit(target);
+                for ind in indices {
+                    let ind = self.visit(ind);
+                    let ind_i: i32;
+                    match ind.kind {
+                        AST::INT { int_value } => ind_i = int_value,
+                        _ => { 
+                            //index is not a number error
+                            self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::ListError, "Expected integer to index list", ind.einfo.clone()));
+                            return ASTNode::new_noop()
+                        }
+                    }
+                    match combined_target.kind {
+                        AST::LIST { contents } => {
+                            combined_target = contents[ind_i as usize].clone()
+                        },
+                        _ => {
+                            //target is not a list error
+                            self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::ListError, "Indexed target is not a list", combined_target.einfo.clone()));
+                            return ASTNode::new_noop()
+                        } 
+                    }
+
+
+                }
+                combined_target
+            }
+            _ => ASTNode::new_noop()
+        }
+    }
+    // -- TODO -- 
+    pub fn visit_list_reassign(&mut self, _node : &ASTNode) -> ASTNode {
+        todo!()
     }
     //MOVE THESE TO A DIFFERENT FILE LATER
     //??

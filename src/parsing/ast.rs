@@ -15,6 +15,17 @@ pub enum AST {
     BOOL {
         bool_value : bool
     },
+    LIST {
+        contents : Vec<ASTNode>
+    },
+    INDEX {
+        target : Box<ASTNode>,
+        indices : Vec<ASTNode>
+    },
+    LIST_REASSIGN {
+        target : Box<ASTNode>,
+        value : Box<ASTNode>
+    },
     BINOP {
         left : Box<ASTNode>,
         op : TokenType, 

@@ -56,7 +56,7 @@ impl<'a> Parser<'a> {
                     TokenType::AND | TokenType::OR => {
                         let op = tok.kind.clone();
                         self.advance();
-                        let right = self.parse_comp_term().unwrap();
+                        let right = self.parse_comp_term().unwrap_or(ASTNode::new_noop());
 
                         let ast_binop = AST::BINOP {
                             left : Box::new(ast_left),
@@ -123,6 +123,9 @@ impl<'a> Parser<'a> {
                         self.advance();
                         ast
                     }
+                }
+                TokenType::LSQB => {
+                    return self.parse_list();
                 }
                 TokenType::MIN => {
                     self.advance();
@@ -200,8 +203,8 @@ impl<'a> Parser<'a> {
         match self.curr_token?.kind {
             TokenType::ID(ref name) => {
                 match name.as_str() {
-                    "assign" => self.parse_variable_definition(),
-                    "funct" => self.parse_function_definition(),
+                    "assign" => { self.parse_variable_definition() }
+                    "funct" =>  { self.parse_function_definition() }
                     "return" => self.parse_return(),
                     "if" => self.parse_if(),
                     "while" => self.parse_while(),
@@ -243,15 +246,33 @@ impl<'a> Parser<'a> {
     pub fn parse_variable(&mut self) -> Option<ASTNode> {
         self.advance();
         if self.curr_token?.kind == TokenType::LPR {
-            return self.parse_function_call();
+            let preemptive =  self.parse_function_call()?;
+            if self.curr_token?.kind == TokenType::LSQB {
+                // parse list indices
+                return self.parse_index(preemptive);
+                
+            }
+            Some(preemptive)
         } else if self.curr_token?.kind == TokenType::EQL {
             return self.parse_variable_reassign();
         } else {
+            //now we are at a pure variable, like var
             let var_name = match &self.prev_token?.kind {
                 TokenType::ID(x) => x.to_owned(),
                 _ => String::new()
             };
-            return Some(ASTNode::new(AST::VAR { name : var_name }, self.prev_token?.einfo.clone()));
+            let preemptive = ASTNode::new(AST::VAR { name : var_name }, self.prev_token?.einfo.clone());
+            //maybe it's var[1]
+            if self.curr_token?.kind == TokenType::LSQB {
+                let list_ind_expr = self.parse_index(preemptive)?;
+                //maybe it's var[1] = 5
+                if self.curr_token?.kind == TokenType::EQL {
+                    return self.parse_list_reassign(list_ind_expr);
+                } else {
+                    return Some(list_ind_expr);
+                }
+            }
+            Some(preemptive)
         }
         
 
@@ -265,6 +286,36 @@ impl<'a> Parser<'a> {
         self.advance(); //past the EQL
         let var_value = self.parse_comp_expr()?;
         Some(ASTNode::new(AST::VAR_REASSIGN { name: var_name, value: Box::new(var_value) }, self.prev_token?.einfo.clone()))
+    }
+    pub fn parse_list(&mut self) -> Option<ASTNode> {
+        let e = self.curr_token?.einfo.clone();
+        self.advance(); //past the LSQB
+        let mut contents = Vec::new();
+        contents.push(self.parse_comp_expr().unwrap_or(ASTNode::new_noop()));
+        while self.curr_token?.kind == TokenType::CMA {
+            self.advance();
+            contents.push(self.parse_comp_expr().unwrap_or(ASTNode::new_noop()));
+        }
+        self.verify(TokenType::RSQB);
+        self.advance();
+        Some(ASTNode::new(AST::LIST{contents}, e))
+    }
+    pub fn parse_index(&mut self, target : ASTNode) -> Option<ASTNode> {
+        let e = target.einfo.clone();
+        let mut inds = Vec::new();
+        while self.curr_token?.kind == TokenType::LSQB {
+            self.advance();
+            inds.push(self.parse_expr().unwrap_or(ASTNode::new_noop()));
+            self.verify(TokenType::RSQB);
+            self.advance();
+        }
+        Some(ASTNode::new(AST::INDEX{target : Box::new(target), indices: inds}, e))
+    }
+    pub fn parse_list_reassign(&mut self, target : ASTNode) -> Option<ASTNode> {
+        self.advance(); //past the EQL
+        let value = self.parse_comp_expr().unwrap_or(ASTNode::new_noop());
+        let e = value.einfo.clone();
+        Some(ASTNode::new(AST::LIST_REASSIGN { target: Box::new(target), value: Box::new(value) }, e))
     }
     //DONE
     pub fn parse_function_definition(&mut self) -> Option<ASTNode> {

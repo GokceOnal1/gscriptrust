@@ -102,6 +102,8 @@ impl Lexer {
             self.currchar += 1;
         }
     }
+    // -- TODO --
+    // fix issue with collecting string with a forgotten closing quote
     fn collect_str(&mut self) {
         let starting_c = self.currchar;
         self.curri += 1;

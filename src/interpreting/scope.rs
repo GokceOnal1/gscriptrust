@@ -52,9 +52,9 @@ impl Scope {
             _ => Err("Not a valid function definition".to_string())
         }
     }
-    pub fn resolve_var(&self, name : String) -> Option<&ASTNode> {
-        self.variables.get(&name).or_else(|| {
-            if let Some(ref par) = self.parent {
+    pub fn resolve_var(&mut self, name : String) -> Option<&mut ASTNode> {
+        self.variables.get_mut(&name).or_else(|| {
+            if let Some(ref mut par) = self.parent {
                 par.resolve_var(name)
             } else {
                 None

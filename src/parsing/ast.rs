@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::{errors::error::*, token::TokenType};
 
 #[allow(non_camel_case_types)]
@@ -57,6 +59,11 @@ pub enum AST {
     },
     RETURN {
         value : Box<ASTNode>
+    },
+    CLASS_DEF {
+        name : String,
+        properties : HashMap<String, ASTNode>,
+        
     },
     IF {
         conditions : Vec<ASTNode>,

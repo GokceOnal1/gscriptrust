@@ -1,1 +1,4 @@
-ast_debug( a[1][2] = 5 );
+assign list = [1, ["chode", "gyatt"], 3];
+write(list);
+list[0][10+5] = 5;
+write(list);

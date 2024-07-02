@@ -7,7 +7,7 @@ use std::rc::Rc;
 
 
 pub struct Visitor {
-    current_scope : Scope,
+    current_scope : Rc<RefCell<Scope>>,
     pub errorstack : Rc<RefCell<ErrorStack>>,
     keywords : Vec<String>
 }
@@ -15,7 +15,7 @@ impl Visitor {
     pub fn new(errorstack : Rc<RefCell<ErrorStack>>) -> Visitor {
         Visitor { 
             errorstack, 
-            current_scope : Scope::new(None), 
+            current_scope : Rc::new(RefCell::new(Scope::new(None))), 
             keywords : vec!["assign", "funct", "if", "param", "return", "blueprint", "new", "while", "break", "true", "false"].iter().map(|x| x.to_string()).collect()
         }
     }
@@ -30,7 +30,7 @@ impl Visitor {
             AST::VAR_DEF{..} => { return self.visit_variable_definition(node); }
             AST::VAR_REASSIGN{..} => { return self.visit_variable_reassign(node); }
             AST::VAR{..} => { return self.visit_variable(node); }
-            AST::FUNC_CALL { .. } => { return self.visit_function_call(node); },
+            AST::FUNC_CALL { .. } => { return self.visit_function_call(node, None); },
             AST::FUNC_DEF {..} => { return self.visit_function_definition(node); },
             AST::RETURN{..} => { return self.visit_return(node); },
             AST::IF{..} => { return self.visit_if(node); }
@@ -299,7 +299,7 @@ impl Visitor {
             _ => return ASTNode::new_noop()
         }
     }
-    pub fn visit_function_call(&mut self, node : &ASTNode) -> ASTNode {
+    pub fn visit_function_call(&mut self, node : &ASTNode, extern_scope : Option<Rc<RefCell<Scope>>>) -> ASTNode {
         match &node.kind {
             AST::FUNC_CALL { name, args } => {
                 match name.as_str() {
@@ -308,10 +308,16 @@ impl Visitor {
                     "ast_debug" => return self.std_func_debug(args), 
                     _ => {}
                 }
-                //cloning here because of borrowing rules
-                let curr_scope = self.current_scope.clone();
-                let fdef_option = curr_scope.resolve_func(name.clone());
-                if let Some(fdef) =  fdef_option {
+                //Interesting how I need to store the borrowed currscope in a local variable
+                //I think it's because since the b_currscope is declared after currscope, it 
+                //is dropped first, meaning currscope can then be safely dropped
+                let fdef_option = {
+                    let currscope = self.current_scope.clone();
+                    let b_currscope = currscope.borrow();
+                    b_currscope.resolve_func(name.clone())
+                };
+
+                if let Some(fdef) = fdef_option {
                     match &fdef.kind {
                         AST::FUNC_DEF { name: _, body: fdef_body, args: fdef_args } => {
                             if args.len() != fdef_args.len() {
@@ -325,12 +331,15 @@ impl Visitor {
                             //setting self.current_scope as the parent DOES NOT WORK in recursive scenarios
                             //solution: set the parent as some kind of global scope
                             // !! END ISSUE !!
-                            let mut func_scope = Scope::new(Some(Box::new(Scope::get_root_scope(self.current_scope.clone()))));
+                            let func_scope = match extern_scope {
+                                Some(s) => Rc::new(RefCell::new(Scope::new(Some(s.clone())))),
+                                None => Rc::new(RefCell::new(Scope::new(Some(Scope::get_root_scope(self.current_scope.clone())))))
+                            };
                             for (argdef, arg) in fdef_args.iter().zip(args.iter()) {
                                 let arg_val = self.visit(arg);
 
                                 if let AST::VAR_DEF{name: argdef_name, ..} = &argdef.kind {
-                                    if let Err(s) = func_scope.add_var(&ASTNode::new(AST::VAR_DEF { name: argdef_name.clone() , value: Box::new(arg_val) }, arg.einfo.clone())) {
+                                    if let Err(s) = func_scope.borrow_mut().add_var(&ASTNode::new(AST::VAR_DEF { name: argdef_name.clone() , value: Box::new(arg_val) }, arg.einfo.clone())) {
                                         println!("{}",s);
                                     }
                                 } else {
@@ -349,7 +358,7 @@ impl Visitor {
                             } else {
                                 res
                             }
-
+                            
                         },
                         _ => ASTNode::new_noop()
                     }
@@ -376,7 +385,7 @@ impl Visitor {
                     self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::FunctionDefinitionError, "Illegal use of keyword for function definition", node.einfo.clone()));
                     return ASTNode::new_noop();
                 }
-                if let Err(s) = self.current_scope.add_func(node) {
+                if let Err(s) = self.current_scope.borrow_mut().add_func(node) {
                     self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::FunctionDefinitionError, s.as_str(), node.einfo.clone()));
                     self.errorstack.borrow().terminate_gs();
                 }
@@ -394,7 +403,7 @@ impl Visitor {
                 }
                 let val = self.visit(value);
                 let var_def = ASTNode::new(AST::VAR_DEF { name: name.to_string(), value: Box::new(val) }, node.einfo.clone());
-                let res = self.current_scope.add_var(&var_def );
+                let res = self.current_scope.borrow_mut().add_var(&var_def );
                 if let Err(s) = res {
                     self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::VariableDefinitionError, s.as_str(), node.einfo.clone()));
                     self.errorstack.borrow().terminate_gs();
@@ -410,7 +419,7 @@ impl Visitor {
             AST::VAR_REASSIGN { name, value } => {
                 let val = self.visit(value);
                 let var_def = ASTNode::new(AST::VAR_DEF { name: name.clone(), value: Box::new(val) }, node.einfo.clone());
-                let res = self.current_scope.set_var(name.clone(), &var_def);
+                let res = self.current_scope.borrow_mut().set_var(name.clone(), &var_def);
                 if let Err(s) = res {
                     self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::VariableDefinitionError, s.as_str(), node.einfo.clone()));
                     self.errorstack.borrow().terminate_gs();
@@ -423,8 +432,7 @@ impl Visitor {
     pub fn visit_variable(&mut self, node : &ASTNode) -> ASTNode {
         match &node.kind {
             AST::VAR { name } => {
-                let val = self.current_scope.resolve_var(name.to_string());
-                if let Some(var_def) = val {
+                if let Some(var_def) = self.current_scope.borrow().resolve_var(name.to_string()) {
                     match &var_def.kind {
                         AST::VAR_DEF { name: _ , value } => {
                             return *value.clone()
@@ -485,10 +493,9 @@ impl Visitor {
                 // -- SOLUTION --
                 // Take the memory of the parent of the temporary scope to reuse it on future iterations
                 //kind of works for now but it might be a better idea to make parent an Rc Refcell reference instead of owned 
-                    let mut origin = self.current_scope.clone();
+                    let origin = self.current_scope.clone();
                     loop {
-                        let temp_par_scope = origin.clone();
-                        self.current_scope = Scope::new(Some(Box::new(temp_par_scope)));
+                        self.current_scope = Rc::new(RefCell::new(Scope::new(Some(origin.clone()))));
                         let cond = self.visit(condition);
                         let cond_res = match cond.kind {
                             AST::BOOL { bool_value } => { bool_value },
@@ -505,9 +512,6 @@ impl Visitor {
                             self.current_scope = origin;
                             return ASTNode::new_noop();
                         }
-
-                        let origin_1 = std::mem::take(&mut self.current_scope.parent);
-                        origin = *origin_1.unwrap();
                     }
                     self.current_scope = origin;
                     ASTNode::new_noop()
@@ -633,7 +637,7 @@ impl Visitor {
                                             self.errorstack.borrow().terminate_gs();
                                         }
                                         contents[actual_i as usize] = value;
-                                        let _ = self.current_scope.set_var(list_name.clone(), &ASTNode::new(AST::VAR_DEF{name : list_name.clone(), value : Box::new(orig_list.clone()) }, orig_list.einfo.clone()));
+                                        let _ = self.current_scope.borrow_mut().set_var(list_name.clone(), &ASTNode::new(AST::VAR_DEF{name : list_name.clone(), value : Box::new(orig_list.clone()) }, orig_list.einfo.clone()));
                                         return ASTNode::new_noop();
                                     },
                                     _ => { 
@@ -795,7 +799,7 @@ impl Visitor {
                                 return ASTNode::new_noop();
                             }
                             elements[index as usize] = evaluated_value.clone();
-                            let _ =self.current_scope.set_var(list_name.clone(), &ASTNode::new(AST::VAR_DEF{name : list_name.clone(), value: Box::new(current_list.clone())}, current_list.einfo.clone()));
+                            let _ =self.current_scope.borrow_mut().set_var(list_name.clone(), &ASTNode::new(AST::VAR_DEF{name : list_name.clone(), value: Box::new(current_list.clone())}, current_list.einfo.clone()));
                             return evaluated_value;
                         }
                         _ => {
@@ -835,7 +839,7 @@ impl Visitor {
                 }
             }
         } else if let AST::VAR { name } = &target.kind {
-            let _ = self.current_scope.set_var(name.clone(), &evaluated_value.clone());
+            let _ = self.current_scope.borrow_mut().set_var(name.clone(), &evaluated_value.clone());
             return evaluated_value;
         } else {
             self.errorstack.borrow_mut().errors.push(GError::new_from_tok(
@@ -856,7 +860,7 @@ impl Visitor {
                     self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::BlueprintError, "Illegal use of keyword for blueprint definition", node.einfo.clone()));
                     return ASTNode::new_noop();
                 }
-                if let Err(s) = self.current_scope.add_blueprint(node) {
+                if let Err(s) = self.current_scope.borrow_mut().add_blueprint(node) {
                     self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::BlueprintError, s.as_str(), node.einfo.clone()));
                     self.errorstack.borrow().terminate_gs();
                 }
@@ -873,19 +877,22 @@ impl Visitor {
         let original_scope = self.current_scope.clone();
         match &node.kind {
             AST::NEW{name, args: new_args} => {
-                let blueprint_option = original_scope.resolve_blueprint(name.clone());
-                if let Some(blueprint) = blueprint_option {
+                let b_option = original_scope.borrow().resolve_blueprint(name.clone());
+                if let Some(blueprint) =  b_option{
                     match &blueprint.kind {
                         AST::CLASS { name: _, properties, methods} => {
-                            let mut obj_scope = Scope::new(None);
+                            let obj_scope = Rc::new(RefCell::new(Scope::new(None)));
                             for (_name, prop) in properties {
-                                let _ = obj_scope.add_var(prop);
+                                let _ = obj_scope.borrow_mut().add_var(prop);
                             }
                             if let Some(constructor) = methods.get("create") {
                                 self.current_scope = obj_scope;
                                 self.visit(constructor);
                                 let _constructor_call_node = ASTNode::new(AST::FUNC_CALL { name: String::from("create"), args: new_args.clone() }, node.einfo.clone());
                                 //fix the scoping issue to continue writing code here
+                                self.visit_function_call(&_constructor_call_node, Some(self.current_scope.clone()));
+                                println!("{:#?}", self.current_scope);
+                                self.current_scope = original_scope;
                                 ASTNode::new_noop() // this is temporary
                             } else {
                                 //expected constructor method to exist error

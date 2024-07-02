@@ -1,16 +1,16 @@
-use std::collections::HashMap;
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 use crate::ast::*;
 
 
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug)]
 pub struct Scope {
-    pub parent : Option<Box<Scope>>,
+    pub parent : Option<Rc<RefCell<Scope>>>,
     variables : HashMap<String, ASTNode>,
     functions : HashMap<String, ASTNode>,
     classes : HashMap<String, ASTNode>
 }
 impl Scope {
-    pub fn new(parent : Option<Box<Scope>>) -> Scope {
+    pub fn new(parent : Option<Rc<RefCell<Scope>>>) -> Scope {
         Scope {
             parent,
             variables : HashMap::new(),
@@ -31,10 +31,10 @@ impl Scope {
             _ => Err("Not a valid blueprint definition".to_string())
         }
     }
-    pub fn resolve_blueprint(& self, name : String) -> Option<&ASTNode> {
-        self.classes.get(&name).or_else(|| {
-            if let Some(ref par) = self.parent {
-                par.resolve_blueprint(name)
+    pub fn resolve_blueprint(& self, name : String) -> Option<ASTNode> {
+        self.classes.get(&name).cloned().or_else(|| {
+            if let Some(par) = self.parent.clone() {
+                par.borrow().resolve_blueprint(name)
             } else {
                 None
             }
@@ -57,8 +57,8 @@ impl Scope {
         if let Some(existing) = self.variables.get_mut(&name) {
             *existing = node.clone();
             Ok(())
-        } else if let Some(ref mut par) = self.parent {
-            par.set_var(name, node)
+        } else if let Some( par) = self.parent.clone() {
+            par.borrow_mut().set_var(name, node)
         } else {
             Err(format!("Variable '{}' does not exist in the current scope", name))
         }
@@ -76,28 +76,42 @@ impl Scope {
             _ => Err("Not a valid function definition".to_string())
         }
     }
-    pub fn resolve_var(&mut self, name : String) -> Option<&mut ASTNode> {
-        self.variables.get_mut(&name).or_else(|| {
-            if let Some(ref mut par) = self.parent {
-                par.resolve_var(name)
+    pub fn resolve_var(& self, name : String) -> Option<ASTNode> {
+        self.variables.get(&name).cloned().or_else(|| {
+            if let Some(par) = self.parent.clone() {
+                par.borrow().resolve_var(name)
             } else {
                 None
             }
         })
     }
-    pub fn resolve_func(&self, name : String) -> Option<&ASTNode> {
-        self.functions.get(&name).or_else(|| {
-            if let Some(ref par) = self.parent {
-                par.resolve_func(name)
+    pub fn resolve_func(&self, name : String) -> Option<ASTNode> {
+        self.functions.get(&name).cloned().or_else(|| {
+            if let Some(par) = self.parent.clone() {
+                par.borrow().resolve_func(name)
             } else {
                 None
             }
         })
     }
-    pub fn get_root_scope(starting_scope : Scope) -> Scope {
-        let mut cs = starting_scope;
-        while let Some(par) = cs.parent {
-            cs = (*par).clone();
+    //-- REVISED BY CHATGPT ---
+    // again, the reason for this is because I was dropping an owned value
+    // while still having a borrow for it 
+    pub fn get_root_scope(starting_scope : Rc<RefCell<Scope>>) -> Rc<RefCell<Scope>> {
+        let mut cs = Rc::clone(&starting_scope);
+        loop {
+            let par = {
+                let borrowed_cs = cs.borrow();
+                if let Some(ref p) = borrowed_cs.parent {
+                    Some(Rc::clone(p))
+                } else {
+                    None
+                }
+            };
+            match par {
+                Some(p) => cs = p,
+                None => break
+            }
         }
         cs
     }

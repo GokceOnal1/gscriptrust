@@ -1,7 +1,6 @@
-assign a = 1;
-funct modify() {
-    a = 5;
+assign i = 0;
+while( i < 10) {
+    assign a = 10;
+    write(i, a);
+    i = i + 1;
 };
-write(a);
-modify();
-write(a);

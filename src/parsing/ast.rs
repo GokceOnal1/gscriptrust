@@ -60,10 +60,14 @@ pub enum AST {
     RETURN {
         value : Box<ASTNode>
     },
-    CLASS_DEF {
+    CLASS {
         name : String,
         properties : HashMap<String, ASTNode>,
-        
+        methods : HashMap<String, ASTNode>
+    },
+    NEW {
+        name : String,
+        args : Vec<ASTNode>
     },
     IF {
         conditions : Vec<ASTNode>,

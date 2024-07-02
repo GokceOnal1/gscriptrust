@@ -16,7 +16,7 @@ impl Visitor {
         Visitor { 
             errorstack, 
             current_scope : Scope::new(None), 
-            keywords : vec!["assign", "funct", "if", "param", "return", "while", "break", "true", "false"].iter().map(|x| x.to_string()).collect()
+            keywords : vec!["assign", "funct", "if", "param", "return", "blueprint", "new", "while", "break", "true", "false"].iter().map(|x| x.to_string()).collect()
         }
     }
     pub fn visit(&mut self, node : &ASTNode) -> ASTNode {
@@ -35,6 +35,8 @@ impl Visitor {
             AST::RETURN{..} => { return self.visit_return(node); },
             AST::IF{..} => { return self.visit_if(node); }
             AST::WHILE{..} => { return self.visit_while(node); }
+            AST::CLASS{..} => { return self.visit_blueprint(node); }
+            AST::NEW{..} => { return self.visit_new(node); }
             AST::COMPOUND{ compound_value } => { 
                 for ast in compound_value { 
                     let res = self.visit(ast); 
@@ -846,6 +848,60 @@ impl Visitor {
         }
 
         ASTNode::new_noop() // This should never be reached
+    }
+    pub fn visit_blueprint(&mut self, node : &ASTNode) -> ASTNode {
+        match &node.kind {
+            AST::CLASS{name, ..} => {
+                if self.keywords.contains(name) {
+                    self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::BlueprintError, "Illegal use of keyword for blueprint definition", node.einfo.clone()));
+                    return ASTNode::new_noop();
+                }
+                if let Err(s) = self.current_scope.add_blueprint(node) {
+                    self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::BlueprintError, s.as_str(), node.einfo.clone()));
+                    self.errorstack.borrow().terminate_gs();
+                }
+                node.clone()
+            },
+            _ => ASTNode::new_noop()
+        }
+    }
+    //--ISSUE--
+    //scopes and their parents are owned, so when I clone them, original values are not modified in the end
+    //--SOLUTION--
+    //not done yet, but to fix this I will need to make parent scope Rc RefCell
+    pub fn visit_new(&mut self, node : &ASTNode) -> ASTNode {
+        let original_scope = self.current_scope.clone();
+        match &node.kind {
+            AST::NEW{name, args: new_args} => {
+                let blueprint_option = original_scope.resolve_blueprint(name.clone());
+                if let Some(blueprint) = blueprint_option {
+                    match &blueprint.kind {
+                        AST::CLASS { name: _, properties, methods} => {
+                            let mut obj_scope = Scope::new(None);
+                            for (_name, prop) in properties {
+                                let _ = obj_scope.add_var(prop);
+                            }
+                            if let Some(constructor) = methods.get("create") {
+                                self.current_scope = obj_scope;
+                                self.visit(constructor);
+                                let _constructor_call_node = ASTNode::new(AST::FUNC_CALL { name: String::from("create"), args: new_args.clone() }, node.einfo.clone());
+                                //fix the scoping issue to continue writing code here
+                                ASTNode::new_noop() // this is temporary
+                            } else {
+                                //expected constructor method to exist error
+                                ASTNode::new_noop()
+                            }
+                        },
+                        _ => return ASTNode::new_noop()
+                    }
+                    
+                } else {
+                    //undefined blueprint error
+                    ASTNode::new_noop()
+                }
+            },
+            _ => ASTNode::new_noop()
+        }
     }
 
     //MOVE THESE TO A DIFFERENT FILE LATER

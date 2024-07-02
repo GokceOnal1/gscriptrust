@@ -7,6 +7,7 @@ pub struct Scope {
     pub parent : Option<Box<Scope>>,
     variables : HashMap<String, ASTNode>,
     functions : HashMap<String, ASTNode>,
+    classes : HashMap<String, ASTNode>
 }
 impl Scope {
     pub fn new(parent : Option<Box<Scope>>) -> Scope {
@@ -14,8 +15,31 @@ impl Scope {
             parent,
             variables : HashMap::new(),
             functions : HashMap::new(),
+            classes : HashMap::new(),
         }
     }
+    pub fn add_blueprint(&mut self, node : &ASTNode) -> Result<(), String> {
+        match &node.kind {
+            AST::CLASS {name, ..} => {
+                if self.resolve_blueprint(name.to_string()).is_some() {
+                    return Err(format!("Blueprint '{}' already exists in the current scope", name));
+                } else {
+                    self.classes.insert(name.clone(), node.clone());
+                    return Ok(());
+                }
+            },
+            _ => Err("Not a valid blueprint definition".to_string())
+        }
+    }
+    pub fn resolve_blueprint(& self, name : String) -> Option<&ASTNode> {
+        self.classes.get(&name).or_else(|| {
+            if let Some(ref par) = self.parent {
+                par.resolve_blueprint(name)
+            } else {
+                None
+            }
+        })
+    } 
     pub fn add_var(&mut self, node : &ASTNode) -> Result<(), String> {
         match &node.kind {
             AST::VAR_DEF { name, .. } => {

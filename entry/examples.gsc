@@ -1,3 +1,4 @@
+\ ============================================================ \
 \ basic rock paper scissors \
 write("welcome to rock paper scissors");
 
@@ -18,3 +19,11 @@ while(input != "e") {
     };
 };
 \ end rock paper scissors example \
+\ ============================================================ \
+\ lists example \
+assign list = [1, ["chode", "gyatt"], 3];
+write(list);
+list[0][10+5] = 5;
+write(list);
+\ end lists example \
+\ ============================================================ \

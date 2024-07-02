@@ -2,6 +2,7 @@ use crate::errors::error::*;
 use super::ast::*;
 use super::token::*;
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::rc::Rc;
 
 pub struct Parser<'a> {
@@ -206,6 +207,8 @@ impl<'a> Parser<'a> {
                     "assign" => { self.parse_variable_definition() }
                     "funct" =>  { self.parse_function_definition() }
                     "return" => self.parse_return(),
+                    "blueprint" => self.parse_blueprint(),
+                    "new" => self.parse_new(),
                     "if" => self.parse_if(),
                     "while" => self.parse_while(),
                     "break" => self.parse_break(),
@@ -396,6 +399,94 @@ impl<'a> Parser<'a> {
         self.advance();
         let return_value = self.parse_comp_expr().unwrap_or(ASTNode::new_noop());
         Some(ASTNode::new(AST::RETURN{value:Box::new(return_value)}, self.curr_token?.einfo.clone()))
+    }
+    pub fn parse_blueprint(&mut self) -> Option<ASTNode> {
+        self.advance(); //past 'blueprint'
+        let name = match &self.curr_token?.kind {
+            TokenType::ID(x) =>  x.clone(),
+            _ => {
+                //invalid blueprint name error
+                self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::SyntaxError, "Expected name of blueprint", self.curr_token?.einfo.clone()));
+                self.errorstack.borrow().terminate_gs();
+                String::new()
+            }
+        };
+        let e = self.curr_token?.einfo.clone();
+        self.advance();
+        self.verify(TokenType::LBR);
+        self.advance();
+        let mut properties = HashMap::new();
+        let mut methods = HashMap::new();
+        while self.curr_token?.kind != TokenType::RBR {
+            if let TokenType::ID(id_value) = &self.curr_token?.kind {
+                match id_value.as_str() {
+                    "prop" =>  {
+                        self.advance();
+                        if let TokenType::ID(prop_name) = &self.curr_token?.kind {
+                            properties.insert(prop_name.clone(), ASTNode::new(AST::VAR_DEF { name: prop_name.clone(), value: Box::new(ASTNode::new_noop()) }, self.curr_token?.einfo.clone()));
+                            self.advance();
+                            self.verify(TokenType::SEMI);
+                            self.advance();
+                        } else {
+                            //expected name of property error
+                            self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::SyntaxError, "Expected name of property", self.curr_token?.einfo.clone()));
+                            self.errorstack.borrow().terminate_gs();
+                        }
+                    },
+                    "method" => {
+                        let mdef = self.parse_function_definition()?;
+                        if let AST::FUNC_DEF { body: _, name, args: _ } = &mdef.kind {
+                            methods.insert(name.clone(), mdef.clone());
+                        } else {
+                            //improper method definition error
+                            self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::SyntaxError, "Invalid method definition", mdef.einfo.clone()));
+                            self.errorstack.borrow().terminate_gs();
+                        }
+                        self.verify(TokenType::SEMI);
+                        self.advance();
+                    },
+                    _ => {
+                        //expected 'prop' or 'method' error
+                        self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::SyntaxError, "Expected 'prop' or 'method' to define blueprint fields", self.curr_token?.einfo.clone()));
+                        self.errorstack.borrow().terminate_gs();
+                        return None;
+                    }
+                }
+            } else {
+                //syntax error
+                self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::SyntaxError, "Expected 'prop' or 'method' to define blueprint fields", self.curr_token?.einfo.clone()));
+                self.errorstack.borrow().terminate_gs();
+                return None;
+            }
+        }
+        self.advance();
+        Some(ASTNode::new(AST::CLASS{name, properties, methods}, e))
+    }
+    pub fn parse_new(&mut self) -> Option<ASTNode> {
+        self.advance(); //past 'new'
+        let name = match &self.curr_token?.kind {
+            TokenType::ID(x) => x.clone(),
+            _ => String::new() //expected blueprint name error
+        };
+        let e = self.curr_token?.einfo.clone();
+        self.advance();
+        self.verify(TokenType::LPR);
+        self.advance();
+        let mut args = Vec::new();
+        if self.curr_token?.kind != TokenType::RPR {
+            args.push(self.parse_comp_expr().unwrap_or(ASTNode::new_noop()));
+            while let Some(curr_tok) = self.curr_token {
+                if curr_tok.kind != TokenType::CMA {
+                    break;
+                } else {
+                    self.advance();
+                    args.push(self.parse_comp_expr().unwrap_or(ASTNode::new_noop()));
+                }
+            }
+        }
+        self.verify(TokenType::RPR);
+        self.advance();
+        Some(ASTNode::new(AST::NEW{name: name.clone(), args}, e))
     }
     pub fn parse_if(&mut self) -> Option<ASTNode> {
         let e = self.curr_token?.einfo.clone();

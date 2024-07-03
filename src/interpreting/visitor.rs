@@ -539,9 +539,67 @@ impl Visitor {
                 }
                 s.push(']');
                 s
+            },
+            AST::OBJECT { class_name, scope } => {
+                //println!("{:#?}", scope);
+                let mut s = String::new();
+                s.push_str(&class_name);
+                s.push_str(" instance { \n");
+                let mut a = false;
+                for( varname, vardef ) in &scope.borrow().variables {
+                    if a {
+                        s.push_str(",\n");
+                    }
+                    a = true;
+                    s.push_str(&varname);
+                    s.push_str(": ");
+                    s.push('"');
+                    match &vardef.kind {
+                        AST::VAR_DEF {name: _, value} => {
+                            let visited = self.visit(value);
+                            s.push_str(&self.node_to_string(&visited));
+
+                        },
+                        _ => {}
+                    }
+                    s.push('"');
+                }
+                s.push_str(",\n");
+                let mut b = false;
+                for(funcname, funcdef) in &scope.borrow().functions {
+                    if b {
+                        s.push_str(",\n");
+                    }
+                    b = true;
+                    s.push_str(&funcname);
+                    s.push_str(": function(");
+                    match &funcdef.kind {
+                        AST::FUNC_DEF { name: _, body: _, args } => {
+                            let mut f = false;
+                            for arg in args {
+                                if f {
+                                    s.push_str(", ");
+                                } else {
+                                    s.push_str("args: ");
+                                }
+                                f = true;
+                                match &arg.kind {
+                                    AST::VAR_DEF{name, ..} => {
+                                        s.push_str(&name);
+                                    },
+                                    _ => {}
+                                }
+                            }
+                        },
+                        _ => {}
+                    }
+                    s.push_str(")");
+                }
+                s.push_str("\n}");
+                s
             }
             AST::NOOP => "no operation".to_string(),
-            _ => "undefined".to_string()
+            _ => format!("undefined").to_string()
         }
     }
     pub fn visit_list(&mut self, node : &ASTNode) -> ASTNode {
@@ -873,29 +931,41 @@ impl Visitor {
     //scopes and their parents are owned, so when I clone them, original values are not modified in the end
     //--SOLUTION--
     //not done yet, but to fix this I will need to make parent scope Rc RefCell
+    //so far so good
     pub fn visit_new(&mut self, node : &ASTNode) -> ASTNode {
         let original_scope = self.current_scope.clone();
         match &node.kind {
             AST::NEW{name, args: new_args} => {
                 let b_option = original_scope.borrow().resolve_blueprint(name.clone());
                 if let Some(blueprint) =  b_option{
+                    let class_e = blueprint.einfo.clone();
                     match &blueprint.kind {
                         AST::CLASS { name: _, properties, methods} => {
                             let obj_scope = Rc::new(RefCell::new(Scope::new(None)));
+                            //adding properties
                             for (_name, prop) in properties {
                                 let _ = obj_scope.borrow_mut().add_var(prop);
                             }
                             if let Some(constructor) = methods.get("create") {
-                                self.current_scope = obj_scope;
+                                self.current_scope = obj_scope.clone();
                                 self.visit(constructor);
                                 let _constructor_call_node = ASTNode::new(AST::FUNC_CALL { name: String::from("create"), args: new_args.clone() }, node.einfo.clone());
-                                //fix the scoping issue to continue writing code here
+                                //scoping issue fixed
+                                //here we use the alternate functionality of visit_function_call by giving some instead of none
                                 self.visit_function_call(&_constructor_call_node, Some(self.current_scope.clone()));
-                                println!("{:#?}", self.current_scope);
+                                //println!("{:#?}", self.current_scope);
+                                //adding methods
+                                let mut new_methods = methods.clone();
+                                new_methods.remove("create");
+                                for (_name, method) in new_methods {
+                                    let _ = self.current_scope.borrow_mut().add_func(&method);
+                                }
                                 self.current_scope = original_scope;
-                                ASTNode::new_noop() // this is temporary
+                                ASTNode::new(AST::OBJECT { class_name : name.clone(), scope: obj_scope}, node.einfo.clone())
                             } else {
                                 //expected constructor method to exist error
+                                self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::BlueprintError, "Expected constructor method 'create' for blueprint definition", class_e.clone()));
+                                self.errorstack.borrow().terminate_gs();
                                 ASTNode::new_noop()
                             }
                         },
@@ -904,6 +974,8 @@ impl Visitor {
                     
                 } else {
                     //undefined blueprint error
+                    self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::BlueprintError, format!("Blueprint '{}' does not exist in the current scope", name.clone()).as_str(), node.einfo.clone()));
+                    self.errorstack.borrow().terminate_gs();
                     ASTNode::new_noop()
                 }
             },

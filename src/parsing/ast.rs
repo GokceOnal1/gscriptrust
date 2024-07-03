@@ -1,6 +1,8 @@
 use std::collections::HashMap;
+use std::rc::Rc;
+use std::cell::RefCell;
 
-use crate::{errors::error::*, token::TokenType};
+use crate::{errors::error::*, token::TokenType, scope::Scope};
 
 #[allow(non_camel_case_types)]
 #[derive(Clone, Debug)]
@@ -68,6 +70,10 @@ pub enum AST {
     NEW {
         name : String,
         args : Vec<ASTNode>
+    },
+    OBJECT {
+        class_name : String,
+        scope : Rc<RefCell<Scope>>
     },
     IF {
         conditions : Vec<ASTNode>,

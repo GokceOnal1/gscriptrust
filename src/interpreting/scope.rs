@@ -5,9 +5,9 @@ use crate::ast::*;
 #[derive(Clone, Default, Debug)]
 pub struct Scope {
     pub parent : Option<Rc<RefCell<Scope>>>,
-    variables : HashMap<String, ASTNode>,
-    functions : HashMap<String, ASTNode>,
-    classes : HashMap<String, ASTNode>
+    pub variables : HashMap<String, ASTNode>,
+    pub functions : HashMap<String, ASTNode>,
+    pub classes : HashMap<String, ASTNode>
 }
 impl Scope {
     pub fn new(parent : Option<Rc<RefCell<Scope>>>) -> Scope {

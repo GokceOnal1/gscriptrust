@@ -21,7 +21,7 @@ impl Visitor {
     }
     pub fn visit(&mut self, node : &ASTNode) -> ASTNode {
         match &node.kind {
-            AST::STRING{..} | AST::INT{..} | AST::FLOAT{..} | AST::BOOL{..} | AST::BREAK => { return node.clone(); } ,
+            AST::STRING{..} | AST::INT{..} | AST::FLOAT{..} | AST::BOOL{..} | AST::BREAK | AST::OBJECT{..} => { return node.clone(); } ,
             AST::BINOP{..} => { return self.visit_binop(node); }
             AST::UNOP{..} => { return self.visit_unop(node); }
             AST::LIST{..} => {return self.visit_list(node); }
@@ -580,7 +580,7 @@ impl Visitor {
                                 if f {
                                     s.push_str(", ");
                                 } else {
-                                    s.push_str("args: ");
+                                    s.push_str("params: ");
                                 }
                                 f = true;
                                 match &arg.kind {
@@ -949,9 +949,16 @@ impl Visitor {
                             if let Some(constructor) = methods.get("create") {
                                 self.current_scope = obj_scope.clone();
                                 self.visit(constructor);
-                                let _constructor_call_node = ASTNode::new(AST::FUNC_CALL { name: String::from("create"), args: new_args.clone() }, node.einfo.clone());
+                                self.current_scope = original_scope.clone();
+                                let _constructor_call_node = ASTNode::new(AST::FUNC_CALL { name: String::from("create"), args: new_args.clone().iter().map(|x| self.visit(x)).collect() }, node.einfo.clone());
+                                self.current_scope = obj_scope.clone();
                                 //scoping issue fixed
                                 //here we use the alternate functionality of visit_function_call by giving some instead of none
+                                // -- ISSUE --
+                                //args to constructor are not being evaluated in the correct scope,
+                                //they should be evaluated in global scope but instead are being evaluated in obj scope
+                                // -- SOLUTION --
+                                // above you can see that I visited the args before we visit the function call itself
                                 self.visit_function_call(&_constructor_call_node, Some(self.current_scope.clone()));
                                 //println!("{:#?}", self.current_scope);
                                 //adding methods

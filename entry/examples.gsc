@@ -27,3 +27,23 @@ list[1][0] = 5;
 write(list);
 \ end lists example \
 \ ============================================================ \
+\ blueprints example \
+blueprint Car {
+    prop brand;
+    prop model;
+    prop color;
+    prop year;
+    method create(param b, param m, param c, param y) {
+        brand = b;
+        model = m;
+        color = c;
+        year = y;
+    };
+};
+
+assign myFirstCar = new Car("Toyota", "Prius", "grey", 2010);
+assign myCar = new Car(myFirstCar, "Forester", "green", 2016);
+write(myCar);
+write(myFirstCar);
+\ end blueprints example \
+\ ============================================================ \

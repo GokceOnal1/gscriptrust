@@ -30,6 +30,10 @@ pub enum AST {
         target : Box<ASTNode>,
         value : Box<ASTNode>
     },
+    OBJECT_REASSIGN {
+        object_index : Box<ASTNode>,
+        value : Box<ASTNode>
+    },
     BINOP {
         left : Box<ASTNode>,
         op : TokenType, 
@@ -74,6 +78,10 @@ pub enum AST {
     OBJECT {
         class_name : String,
         scope : Rc<RefCell<Scope>>
+    },
+    OBJECT_INDEX {
+        object : Box<ASTNode>,
+        property : String
     },
     IF {
         conditions : Vec<ASTNode>,

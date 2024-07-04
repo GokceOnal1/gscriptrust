@@ -274,11 +274,44 @@ impl<'a> Parser<'a> {
                 } else {
                     return Some(list_ind_expr);
                 }
+            } //maybe it's var.x
+            else if self.curr_token?.kind == TokenType::DOT {
+                let obj_ind_expr = self.parse_obj_index(preemptive)?;
+                //maybe it's var.x = 5
+                if self.curr_token?.kind == TokenType::EQL {
+                    return self.parse_obj_reassign(obj_ind_expr);
+                } else {
+                    return Some(obj_ind_expr);
+                }
             }
             Some(preemptive)
         }
         
 
+    }
+    pub fn parse_obj_index(&mut self, object : ASTNode) -> Option<ASTNode> {
+        let e = object.einfo.clone();
+        let mut object_ind = object;
+        while self.curr_token?.kind == TokenType::DOT {
+            self.advance();
+            match &self.curr_token?.kind {
+                TokenType::ID(x) => {
+                    object_ind = ASTNode::new(AST::OBJECT_INDEX{object : Box::new(object_ind), property : x.clone()}, e.clone());
+                    self.advance();
+                },
+                _ => {
+                    //expected identifier as property error
+                    return None;
+                }
+            }
+        }
+        Some(object_ind)
+    }
+    pub fn parse_obj_reassign(&mut self, object_index : ASTNode) -> Option<ASTNode> {
+        self.advance(); //past 'EQL'
+        let value = self.parse_comp_expr().unwrap_or(ASTNode::new_noop());
+        let e = value.einfo.clone();
+        Some(ASTNode::new(AST::OBJECT_REASSIGN{object_index : Box::new(object_index), value : Box::new(value)  }, e))
     }
     //DONE
     pub fn parse_variable_reassign(&mut self) -> Option<ASTNode> {

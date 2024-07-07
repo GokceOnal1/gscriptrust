@@ -81,7 +81,7 @@ pub enum AST {
     },
     OBJECT_INDEX {
         object : Box<ASTNode>,
-        property : String
+        property : Box<ASTNode>
     },
     IF {
         conditions : Vec<ASTNode>,

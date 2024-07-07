@@ -21,6 +21,7 @@ impl Visitor {
     }
     pub fn visit(&mut self, node : &ASTNode) -> ASTNode {
         match &node.kind {
+            //maybe change this to a deref of node?
             AST::STRING{..} | AST::INT{..} | AST::FLOAT{..} | AST::BOOL{..} | AST::BREAK | AST::OBJECT{..} => { return node.clone(); } ,
             AST::BINOP{..} => { return self.visit_binop(node); }
             AST::UNOP{..} => { return self.visit_unop(node); }
@@ -37,6 +38,8 @@ impl Visitor {
             AST::WHILE{..} => { return self.visit_while(node); }
             AST::CLASS{..} => { return self.visit_blueprint(node); }
             AST::NEW{..} => { return self.visit_new(node); }
+            AST::OBJECT_INDEX { .. } => { return self.visit_obj_index(node); }
+            AST::OBJECT_REASSIGN { .. } => { return self.visit_obj_reassign(node); }
             AST::COMPOUND{ compound_value } => { 
                 for ast in compound_value { 
                     let res = self.visit(ast); 
@@ -433,7 +436,7 @@ impl Visitor {
         match &node.kind {
             AST::VAR { name } => {
                 if let Some(var_def) = self.current_scope.borrow().resolve_var(name.to_string()) {
-                    match &var_def.kind {
+                    match &var_def.borrow().kind {
                         AST::VAR_DEF { name: _ , value } => {
                             return *value.clone()
                         },
@@ -554,13 +557,13 @@ impl Visitor {
                     s.push_str(&varname);
                     s.push_str(": ");
                     s.push('"');
-                    match &vardef.kind {
+                    match &vardef.borrow().kind {
                         AST::VAR_DEF {name: _, value} => {
                             let visited = self.visit(value);
                             s.push_str(&self.node_to_string(&visited));
 
                         },
-                        _ => {}
+                        _ => { }
                     }
                     s.push('"');
                 }
@@ -599,7 +602,7 @@ impl Visitor {
                 s
             }
             AST::NOOP => "no operation".to_string(),
-            _ => format!("undefined").to_string()
+            _ => format!("undefined: \n{:#?}", node).to_string()
         }
     }
     pub fn visit_list(&mut self, node : &ASTNode) -> ASTNode {
@@ -640,6 +643,144 @@ impl Visitor {
                 }
                 combined_target
             }
+            _ => ASTNode::new_noop()
+        }
+    }
+    pub fn visit_obj_index(&mut self, node : &ASTNode) -> ASTNode {
+        match &node.kind {
+            AST::OBJECT_INDEX { object, property } => {
+                let obj = self.visit(object);
+                match &obj.kind {
+                    AST::OBJECT{ class_name, scope } => {
+                        match &property.kind {
+                            AST::VAR{name} => {
+                                if let Some(val) = scope.borrow().resolve_var(name.clone()) {
+                                    if let AST::VAR_DEF{name:_, value} = &val.borrow().kind {
+                                        return *value.clone();
+                                    }
+                                    val.borrow().clone()
+                                } else {
+                                    //property does not exist error
+                                    self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::BlueprintError, format!("Property '{}' does not exist on blueprint '{}'", name.clone(), class_name.clone()).as_str(), property.einfo.clone()));
+                                    ASTNode::new_noop()
+                                }
+                            }
+                            AST::FUNC_CALL{..} => {
+                                let oscope = self.current_scope.clone();
+                                self.current_scope = scope.clone();
+                                let res = self.visit_function_call(property, None);
+                                self.current_scope = oscope;
+                                res
+                            }
+                            _ => { println!("you are indexing something other than a method or property!"); ASTNode::new_noop() }
+                        }
+                        
+                    }
+                    _ => {
+                        //indexed identifier is not an object error
+                        self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::SyntaxError, "Invalid use of dot operator on non-object", object.einfo.clone()));
+                        ASTNode::new_noop()
+                    }
+                }
+            }
+            _ => ASTNode::new_noop()
+
+        }
+    }
+    fn obj_index_mut(&mut self, node : &ASTNode) -> Rc<RefCell<ASTNode>> {
+        match &node.kind {
+            AST::OBJECT_INDEX { object, property } => {
+                let obj = match &object.kind {
+                    AST::OBJECT_INDEX { .. } => {
+                        self.obj_index_mut(object)
+                    },
+                    AST::OBJECT{class_name:_, scope} => {
+                        match &property.kind {
+                            AST::VAR{name} => {
+                                let vdef = scope.borrow().resolve_var(name.clone()).unwrap();
+                                vdef
+                            }
+                            _ => return Rc::new(RefCell::new(ASTNode::new_noop()))
+                        }
+                    },
+                    AST::VAR{name} => {
+                        let odef = self.current_scope.borrow().resolve_var(name.clone()).unwrap();
+                        odef
+                    }
+                    _ => { println!("{:#?}", object); Rc::new(RefCell::new(ASTNode::new_noop())) }
+                };
+                let obj_b = obj.borrow();
+                match &obj_b.kind {
+                    AST::VAR_DEF { name:_, value } => {
+                        match &value.kind {
+                            AST::OBJECT{class_name:_, scope} => {
+                                match &property.kind {
+                                    AST::VAR{name} => {
+                                        if let Some(val) = scope.borrow().resolve_var(name.clone()) {
+                                            Rc::clone(&val)
+                                        } else {
+                                            println!("property does not exist in object");
+                                            std::process::exit(1)
+                                        }
+                                    }
+                                    _ => Rc::new(RefCell::new(ASTNode::new_noop()))
+                                }     
+                            }
+                            _ => { println!("indexed property is not object"); std::process::exit(1) }
+                        }
+                    }
+                    _ => { println!("here"); std::process::exit(1) }
+                }
+            },
+            _ => { println!("here1"); std::process::exit(1) }
+        }
+    }
+    pub fn visit_obj_reassign(&mut self, node : &ASTNode) -> ASTNode {
+        match &node.kind {
+            AST::OBJECT_REASSIGN { object_index, value } => {
+                match &object_index.kind {
+                    AST::OBJECT_INDEX { object, property } => {
+                        
+                        let obj = match &object.kind {
+                            //this is in the case that object is another OBJECT_INDEX
+                            //as in var.x.y
+                            AST::OBJECT_INDEX { .. } => self.obj_index_mut(object),
+                            //and this is the case where object would literally just be the identifier for the object
+                            //like the 'var' in var.x
+                            AST::VAR{name} => self.current_scope.borrow().resolve_var(name.clone()).unwrap(),
+                            _ => Rc::new(RefCell::new(ASTNode::new_noop()))
+                        };
+                        
+                        let mut obj_b = obj.borrow_mut();
+                        let new_value = self.visit(&value);
+                        let new_value_einfo = new_value.einfo.clone();
+                        let new_value_vardef = match &property.kind {
+                            AST::VAR{name} => {
+                                ASTNode::new(AST::VAR_DEF{name : name.clone(), value : Box::new(new_value)}, new_value_einfo)
+                            }
+                            _ => ASTNode::new_noop()
+                        };
+                        if let AST::VAR_DEF { name: _, value:v } = &mut obj_b.kind {
+                            if let AST::OBJECT { class_name: _, scope } = &v.kind {
+                                match &property.kind {
+                                    AST::VAR{name} => {
+                                        let _ = scope.borrow_mut().set_var(name.clone(), &new_value_vardef);
+                                    }
+                                    _ => return ASTNode::new_noop()
+                                }
+                                
+                            } else {
+                                println!("not an obj");
+                            }
+                        } else {
+                            println!("not a vardef");
+                        }
+                        return ASTNode::new_noop()
+
+                    } 
+                    _ => ASTNode::new_noop()
+                }
+            },
             _ => ASTNode::new_noop()
         }
     }
@@ -930,8 +1071,8 @@ impl Visitor {
     //--ISSUE--
     //scopes and their parents are owned, so when I clone them, original values are not modified in the end
     //--SOLUTION--
-    //not done yet, but to fix this I will need to make parent scope Rc RefCell
-    //so far so good
+    //but to fix this I will need to make parent scope Rc RefCell
+    //fixed so far
     pub fn visit_new(&mut self, node : &ASTNode) -> ASTNode {
         let original_scope = self.current_scope.clone();
         match &node.kind {

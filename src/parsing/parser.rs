@@ -294,9 +294,15 @@ impl<'a> Parser<'a> {
         let mut object_ind = object;
         while self.curr_token?.kind == TokenType::DOT {
             self.advance();
+            let mut preemptive;
             match &self.curr_token?.kind {
+                //--ISSUE--
+                //this will only parse properties, not methods or things like list indices
+                // -- SOLUTION -- 
+                // after ID, check for LPR and/or LSQB
+                // as in, the property can be either var.x, var.x(), var.x[1], or var.x()[1]
                 TokenType::ID(x) => {
-                    object_ind = ASTNode::new(AST::OBJECT_INDEX{object : Box::new(object_ind), property : x.clone()}, e.clone());
+                    preemptive = ASTNode::new(AST::VAR{name:x.clone()}, self.curr_token?.einfo.clone());
                     self.advance();
                 },
                 _ => {
@@ -304,6 +310,13 @@ impl<'a> Parser<'a> {
                     return None;
                 }
             }
+            if self.curr_token?.kind == TokenType::LPR {
+                preemptive = self.parse_function_call()?;
+            }
+            if self.curr_token?.kind == TokenType::LSQB {
+                preemptive = self.parse_index(preemptive)?;
+            }
+            object_ind = ASTNode::new(AST::OBJECT_INDEX{object : Box::new(object_ind), property : Box::new(preemptive)}, e.clone());
         }
         Some(object_ind)
     }

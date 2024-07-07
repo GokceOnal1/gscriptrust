@@ -5,7 +5,7 @@ use crate::ast::*;
 #[derive(Clone, Default, Debug)]
 pub struct Scope {
     pub parent : Option<Rc<RefCell<Scope>>>,
-    pub variables : HashMap<String, ASTNode>,
+    pub variables : HashMap<String, Rc<RefCell<ASTNode>>>,
     pub functions : HashMap<String, ASTNode>,
     pub classes : HashMap<String, ASTNode>
 }
@@ -46,7 +46,7 @@ impl Scope {
                 if self.resolve_var(name.to_string()).is_some() {
                     return Err(format!("Variable '{}' already exists in the current scope", name));
                 } else {
-                    self.variables.insert(name.clone(), node.clone());
+                    self.variables.insert(name.clone(), Rc::new(RefCell::new(node.clone())));
                     return Ok(());
                 }
             },
@@ -55,7 +55,7 @@ impl Scope {
     }
     pub fn set_var(&mut self, name : String, node : &ASTNode) -> Result<(), String> {
         if let Some(existing) = self.variables.get_mut(&name) {
-            *existing = node.clone();
+            *existing = Rc::new(RefCell::new(node.clone()));
             Ok(())
         } else if let Some( par) = self.parent.clone() {
             par.borrow_mut().set_var(name, node)
@@ -76,7 +76,7 @@ impl Scope {
             _ => Err("Not a valid function definition".to_string())
         }
     }
-    pub fn resolve_var(& self, name : String) -> Option<ASTNode> {
+    pub fn resolve_var(& self, name : String) -> Option<Rc<RefCell<ASTNode>>> {
         self.variables.get(&name).cloned().or_else(|| {
             if let Some(par) = self.parent.clone() {
                 par.borrow().resolve_var(name)
@@ -84,6 +84,9 @@ impl Scope {
                 None
             }
         })
+    }
+    pub fn resolve_var_cloned(&self, name : String) -> Option<ASTNode> {
+        Some(self.resolve_var(name)?.borrow().clone())
     }
     pub fn resolve_func(&self, name : String) -> Option<ASTNode> {
         self.functions.get(&name).cloned().or_else(|| {

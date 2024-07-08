@@ -340,10 +340,10 @@ impl<'a> Parser<'a> {
         let e = self.curr_token?.einfo.clone();
         self.advance(); //past the LSQB
         let mut contents = Vec::new();
-        contents.push(self.parse_comp_expr().unwrap_or(ASTNode::new_noop()));
+        contents.push(Rc::new(RefCell::new(self.parse_comp_expr().unwrap_or(ASTNode::new_noop()))));
         while self.curr_token?.kind == TokenType::CMA {
             self.advance();
-            contents.push(self.parse_comp_expr().unwrap_or(ASTNode::new_noop()));
+            contents.push(Rc::new(RefCell::new(self.parse_comp_expr().unwrap_or(ASTNode::new_noop()))));
         }
         self.verify(TokenType::RSQB);
         self.advance();

@@ -544,7 +544,7 @@ impl Visitor {
                         s.push(' ');
                     }
                     b = true;
-                    s.push_str(&self.node_to_string(c));
+                    s.push_str(&self.node_to_string(&c.borrow()));
                 }
                 s.push(']');
                 s
@@ -614,7 +614,7 @@ impl Visitor {
     pub fn visit_list(&mut self, node : &ASTNode) -> ASTNode {
         match &node.kind {
             AST::LIST{contents} => {
-                ASTNode::new(AST::LIST{contents : contents.iter().map(|x| self.visit(x)).collect()}, node.einfo.clone())
+                ASTNode::new(AST::LIST{contents : contents.iter().map(|x| Rc::new(RefCell::new(self.visit(&x.borrow())))).collect()}, node.einfo.clone())
             },
             _ => ASTNode::new_noop()
         }
@@ -640,7 +640,7 @@ impl Visitor {
                                 self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::ListError, format!("Index {} is out of bounds for list of length {}", ind_i, contents.len()).as_str(), ind.einfo.clone()));
                                 self.errorstack.borrow().terminate_gs();
                             }
-                            combined_target = contents[ind_i as usize].clone()
+                            combined_target = contents[ind_i as usize].borrow().clone()
                         },
                         _ => {
                             //target is not a list error
@@ -829,8 +829,9 @@ impl Visitor {
                         // then iterate through the indices, using list_ref_i as a mutable reference to the contents
                         // of orig_list to finally change the desired value
                         // then we set orig_list to the actual list stored in the scope
-                        let mut orig_list = self.visit(list);
-                        let mut list_ref_i = &mut orig_list;
+                        let orig_list = self.visit(list);
+                        let orig_list_ref = Rc::new(RefCell::new(orig_list));
+                        let mut list_ref_i = orig_list_ref.clone();
                         
                         //at this point list_ref_i is a mutable reference to the list
                         //referred to by the identifier value of "list"
@@ -845,9 +846,11 @@ impl Visitor {
                                 }
                             };
                             //println!("{}", actual_i);
+                            let e = list_ref_i.borrow().einfo.clone();
                             if i == indices.len() - 1 {
                                 //now we know we have reached the point to actually set the variable
-                                match &mut list_ref_i.kind {
+                                
+                                match &mut list_ref_i.borrow_mut().kind {
                                     AST::LIST{contents} => {
                                         //println!("here");
                                         //make sure index is valid
@@ -855,29 +858,32 @@ impl Visitor {
                                             self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::ListError, format!("Index {} is out of bounds for list of length {}", actual_i, contents.len()).as_str(), i_val.einfo.clone()));
                                             self.errorstack.borrow().terminate_gs();
                                         }
-                                        contents[actual_i as usize] = value;
-                                        let _ = self.current_scope.borrow_mut().set_var(list_name.clone(), &ASTNode::new(AST::VAR_DEF{name : list_name.clone(), value : Box::new(orig_list.clone()) }, orig_list.einfo.clone()));
-                                        return ASTNode::new_noop();
+                                        contents[actual_i as usize] = Rc::new(RefCell::new(value.clone()));
+                                        
                                     },
                                     _ => { 
-                                        self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::ListError, "Indexed object is not a list", list_ref_i.einfo.clone()));
+                                        self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::ListError, "Indexed object is not a list", e.clone()));
                                         return ASTNode::new_noop() }  //handle error here
                                 }
                             } else {
-                                match &mut list_ref_i.kind {
+                                let thingy = list_ref_i.clone();
+                                let mut thingy2 = thingy.borrow_mut();
+                                match &mut thingy2.kind {
                                     AST::LIST {contents} => {
                                         //make sure index is valid  
                                         if actual_i < 0 || actual_i as usize >= contents.len() {
                                             self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::ListError, format!("Index {} is out of bounds for list of length {}", actual_i, contents.len()).as_str(), i_val.einfo.clone()));
                                             self.errorstack.borrow().terminate_gs();
                                         }
-                                        list_ref_i = &mut contents[actual_i as usize];
+                                        list_ref_i = contents[actual_i as usize].clone();
+                                        
                                     }
                                     _ => { 
-                                        self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::ListError, "Indexed object is not a list", list_ref_i.einfo.clone()));
+                                        self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::ListError, "Indexed object is not a list", e.clone()));
                                         return ASTNode::new_noop() }//handle error here
                                 }
                             }
+                            let _ = self.current_scope.borrow_mut().set_var(list_name.clone(), &ASTNode::new(AST::VAR_DEF{name : list_name.clone(), value : Box::new(orig_list_ref.borrow().clone()) }, e.clone()));
                         }
                        // list_ref.print();
                         return ASTNode::new_noop();
@@ -896,7 +902,8 @@ impl Visitor {
     // this will need to studied
     /// use visit_list_reassign instead
     ///  --CHAT GPT PROVIDED THIS, I USED IT AS REFERENCE--
-    pub fn chat_gpt_visit_list_reassign(&mut self, target: &ASTNode, value : &ASTNode) -> ASTNode {
+    pub fn chat_gpt_visit_list_reassign(&mut self, _target: &ASTNode, _value : &ASTNode) -> ASTNode {
+        ASTNode::new_noop()
         
         // ----------------
         // NONE OF THIS SHIT WORKS
@@ -980,97 +987,97 @@ impl Visitor {
         //     _ => ASTNode::new_noop()
         // }
         
-        let evaluated_value = self.visit(value);
+        // let evaluated_value = self.visit(value);
 
-        if let AST::INDEX { target: list, indices } = &target.kind {
-            let list_name = match &list.kind {
-                AST::VAR{name} => name.clone(),
-                _ => String::new()
-            };
-            let mut current_list = self.visit(list);
-            let mut current_node = &mut current_list;
+        // if let AST::INDEX { target: list, indices } = &target.kind {
+        //     let list_name = match &list.kind {
+        //         AST::VAR{name} => name.clone(),
+        //         _ => String::new()
+        //     };
+        //     let mut current_list = self.visit(list);
+        //     let mut current_node = &mut current_list;
 
-            for (i, index_node) in indices.iter().enumerate() {
-                let index_value = self.visit(index_node);
-                let index = match index_value.kind {
-                    AST::INT { int_value } => int_value,
-                    _ => {
-                        self.errorstack.borrow_mut().errors.push(GError::new_from_tok(
-                            ETypes::TypeError,
-                            "Index must be an integer",
-                            target.einfo.clone(),
-                        ));
-                        self.errorstack.borrow().terminate_gs();
-                        return ASTNode::new_noop();
-                    }
-                };
+        //     for (i, index_node) in indices.iter().enumerate() {
+        //         let index_value = self.visit(index_node);
+        //         let index = match index_value.kind {
+        //             AST::INT { int_value } => int_value,
+        //             _ => {
+        //                 self.errorstack.borrow_mut().errors.push(GError::new_from_tok(
+        //                     ETypes::TypeError,
+        //                     "Index must be an integer",
+        //                     target.einfo.clone(),
+        //                 ));
+        //                 self.errorstack.borrow().terminate_gs();
+        //                 return ASTNode::new_noop();
+        //             }
+        //         };
 
-                if i == indices.len() - 1 {
-                    match &mut current_node.kind {
-                        AST::LIST { contents: elements } => {
-                            if index < 0 || (index as usize) >= elements.len() {
-                                self.errorstack.borrow_mut().errors.push(GError::new_from_tok(
-                                    ETypes::ListError,
-                                    "Index out of bounds",
-                                    target.einfo.clone(),
-                                ));
-                                self.errorstack.borrow().terminate_gs();
-                                return ASTNode::new_noop();
-                            }
-                            elements[index as usize] = evaluated_value.clone();
-                            let _ =self.current_scope.borrow_mut().set_var(list_name.clone(), &ASTNode::new(AST::VAR_DEF{name : list_name.clone(), value: Box::new(current_list.clone())}, current_list.einfo.clone()));
-                            return evaluated_value;
-                        }
-                        _ => {
-                            self.errorstack.borrow_mut().errors.push(GError::new_from_tok(
-                                ETypes::ListError,
-                                "Target is not a list",
-                                target.einfo.clone(),
-                            ));
-                            self.errorstack.borrow().terminate_gs();
-                            return ASTNode::new_noop();
-                        }
-                    }
-                } else {
-                    current_node = match &mut current_node.kind {
-                        AST::LIST { contents: elements } => {
-                            if index < 0 || (index as usize) >= elements.len() {
-                                self.errorstack.borrow_mut().errors.push(GError::new_from_tok(
-                                    ETypes::ListError,
-                                    "Index out of bounds",
-                                    target.einfo.clone(),
-                                ));
-                                self.errorstack.borrow().terminate_gs();
-                                return ASTNode::new_noop();
-                            }
-                            &mut elements[index as usize]
-                        }
-                        _ => {
-                            self.errorstack.borrow_mut().errors.push(GError::new_from_tok(
-                                ETypes::TypeError,
-                                "Target is not a list",
-                                target.einfo.clone(),
-                            ));
-                            self.errorstack.borrow().terminate_gs();
-                            return ASTNode::new_noop();
-                        }
-                    };
-                }
-            }
-        } else if let AST::VAR { name } = &target.kind {
-            let _ = self.current_scope.borrow_mut().set_var(name.clone(), &evaluated_value.clone());
-            return evaluated_value;
-        } else {
-            self.errorstack.borrow_mut().errors.push(GError::new_from_tok(
-                ETypes::TypeError,
-                "Invalid assignment target",
-                target.einfo.clone(),
-            ));
-            self.errorstack.borrow().terminate_gs();
-            return ASTNode::new_noop();
-        }
+        //         if i == indices.len() - 1 {
+        //             match &mut current_node.kind {
+        //                 AST::LIST { contents: elements } => {
+        //                     if index < 0 || (index as usize) >= elements.len() {
+        //                         self.errorstack.borrow_mut().errors.push(GError::new_from_tok(
+        //                             ETypes::ListError,
+        //                             "Index out of bounds",
+        //                             target.einfo.clone(),
+        //                         ));
+        //                         self.errorstack.borrow().terminate_gs();
+        //                         return ASTNode::new_noop();
+        //                     }
+        //                     elements[index as usize] = evaluated_value.clone();
+        //                     let _ =self.current_scope.borrow_mut().set_var(list_name.clone(), &ASTNode::new(AST::VAR_DEF{name : list_name.clone(), value: Box::new(current_list.clone())}, current_list.einfo.clone()));
+        //                     return evaluated_value;
+        //                 }
+        //                 _ => {
+        //                     self.errorstack.borrow_mut().errors.push(GError::new_from_tok(
+        //                         ETypes::ListError,
+        //                         "Target is not a list",
+        //                         target.einfo.clone(),
+        //                     ));
+        //                     self.errorstack.borrow().terminate_gs();
+        //                     return ASTNode::new_noop();
+        //                 }
+        //             }
+        //         } else {
+        //             current_node = match &mut current_node.kind {
+        //                 AST::LIST { contents: elements } => {
+        //                     if index < 0 || (index as usize) >= elements.len() {
+        //                         self.errorstack.borrow_mut().errors.push(GError::new_from_tok(
+        //                             ETypes::ListError,
+        //                             "Index out of bounds",
+        //                             target.einfo.clone(),
+        //                         ));
+        //                         self.errorstack.borrow().terminate_gs();
+        //                         return ASTNode::new_noop();
+        //                     }
+        //                     &mut elements[index as usize]
+        //                 }
+        //                 _ => {
+        //                     self.errorstack.borrow_mut().errors.push(GError::new_from_tok(
+        //                         ETypes::TypeError,
+        //                         "Target is not a list",
+        //                         target.einfo.clone(),
+        //                     ));
+        //                     self.errorstack.borrow().terminate_gs();
+        //                     return ASTNode::new_noop();
+        //                 }
+        //             };
+        //         }
+        //     }
+        // } else if let AST::VAR { name } = &target.kind {
+        //     let _ = self.current_scope.borrow_mut().set_var(name.clone(), &evaluated_value.clone());
+        //     return evaluated_value;
+        // } else {
+        //     self.errorstack.borrow_mut().errors.push(GError::new_from_tok(
+        //         ETypes::TypeError,
+        //         "Invalid assignment target",
+        //         target.einfo.clone(),
+        //     ));
+        //     self.errorstack.borrow().terminate_gs();
+        //     return ASTNode::new_noop();
+        // }
 
-        ASTNode::new_noop() // This should never be reached
+        // ASTNode::new_noop() // This should never be reached
     }
     pub fn visit_blueprint(&mut self, node : &ASTNode) -> ASTNode {
         match &node.kind {

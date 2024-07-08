@@ -20,7 +20,7 @@ pub enum AST {
         bool_value : bool
     },
     LIST {
-        contents : Vec<ASTNode>
+        contents : Vec<Rc<RefCell<ASTNode>>>
     },
     INDEX {
         target : Box<ASTNode>,

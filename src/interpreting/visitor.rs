@@ -432,12 +432,18 @@ impl Visitor {
             _ => ASTNode::new_noop()
         }
     }
+    // -- ISSUE --
+    // calling 'clone' on node DOESN'T DEEP COPY all the fields if the fields are Rc RefCell
+    // so cloning an object will not clone its scope or all the properties/methods within that scope
     pub fn visit_variable(&mut self, node : &ASTNode) -> ASTNode {
         match &node.kind {
             AST::VAR { name } => {
                 if let Some(var_def) = self.current_scope.borrow().resolve_var(name.to_string()) {
                     match &var_def.borrow().kind {
                         AST::VAR_DEF { name: _ , value } => {
+                            if let AST::OBJECT{class_name, scope} = &value.kind {
+                                return ASTNode::new(AST::OBJECT{class_name: class_name.clone(), scope: Scope::deep_clone(Some(scope.clone())).unwrap()}, node.einfo.clone())
+                            }
                             return *value.clone()
                         },
                         _ => return ASTNode::new_noop()
@@ -630,6 +636,10 @@ impl Visitor {
                     }
                     match combined_target.kind {
                         AST::LIST { contents } => {
+                            if ind_i < 0 || ind_i as usize >= contents.len() {
+                                self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::ListError, format!("Index {} is out of bounds for list of length {}", ind_i, contents.len()).as_str(), ind.einfo.clone()));
+                                self.errorstack.borrow().terminate_gs();
+                            }
                             combined_target = contents[ind_i as usize].clone()
                         },
                         _ => {
@@ -646,6 +656,9 @@ impl Visitor {
             _ => ASTNode::new_noop()
         }
     }
+    // -- ISSUE --
+    // need to make AST::LIST's contents Vec<Rc<RefCell<ASTNode>>> instead of Vec<ASTNode>
+    // to enabe getting a mutable reference to an inner element
     pub fn visit_obj_index(&mut self, node : &ASTNode) -> ASTNode {
         match &node.kind {
             AST::OBJECT_INDEX { object, property } => {
@@ -672,7 +685,14 @@ impl Visitor {
                                 self.current_scope = oscope;
                                 res
                             }
-                            _ => { println!("you are indexing something other than a method or property!"); ASTNode::new_noop() }
+                            AST::INDEX{..} => {
+                                let oscope = self.current_scope.clone();
+                                self.current_scope = scope.clone();
+                                let res = self.visit_index(property);
+                                self.current_scope = oscope;
+                                res
+                            }
+                            _ => { println!("you are indexing something other than a method or property or list!"); ASTNode::new_noop() }
                         }
                         
                     }

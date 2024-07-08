@@ -1,12 +1,8 @@
 blueprint Thing {
-    prop p;
-    method create(param pp) {
-        p = pp;
-    };
-    method speak(param input) {
-        write("aris ", p, " ", input);
+    prop list;
+    method create(param l) {
+        list = l;
     };
 };
-assign t = new Thing(1);
-assign a = 10;
-write(t.b);
+assign a = new Thing([1,2,new Thing(2)]);
+write(a.list[2].list);

@@ -7,6 +7,8 @@ use std::rc::Rc;
 
 fn main() {
     std::env::set_var("RUST_BACKTRACE", "1");
+
+
     let errorstack = Rc::new(RefCell::new(ErrorStack::new()));
     let mut lexer = Lexer::new("entry/entry.gsc", Rc::clone(&errorstack));
     lexer.lex();

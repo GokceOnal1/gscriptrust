@@ -118,4 +118,19 @@ impl Scope {
         }
         cs
     }
+    pub fn deep_clone(starting_scope : Option<Rc<RefCell<Scope>>>) -> Option<Rc<RefCell<Scope>>> {
+        match starting_scope {
+            Some(s) => {
+                let new_s = Rc::new(RefCell::new(Scope::new(None)));
+                for (name, vdef) in &s.borrow().variables {
+                    new_s.borrow_mut().variables.insert(name.clone(), Rc::new(RefCell::new(vdef.borrow().clone())));
+                }
+                if s.borrow().parent.is_some() {
+                    new_s.borrow_mut().parent = Scope::deep_clone(s.borrow().parent.clone());
+                }
+                Some(new_s)
+            }
+            None => None
+        }
+    }
 }

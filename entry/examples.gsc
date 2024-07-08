@@ -47,3 +47,23 @@ write(myCar);
 write(myFirstCar);
 \ end blueprints example \
 \ ============================================================ \
+\ blueprints example 2 \
+blueprint Thing {
+    prop p;
+    method create(param pp) {
+        p = pp;
+    };
+    method speak(param input) {
+        write("aris ", p, " ", input);
+    };
+};
+funct a(param th) {
+    th.p = 5;
+    write(th.p);
+};
+
+assign thing = new Thing(1);
+a(thing);
+write(thing.p);
+\ end blueprints example 2 \
+\ ============================================================ \

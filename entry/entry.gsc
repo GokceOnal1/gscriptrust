@@ -1,4 +1,10 @@
-assign list = [1, ["chode", "gyatt"], 3];
-write(list);
-list[1][0] = 5;
-write(list);
+blueprint Thing {
+    prop p;
+    method create(param pp) {
+        p = pp;
+    };
+};
+funct test() {
+    return [1,new Thing(1),3]
+};
+write(test()[1].p);

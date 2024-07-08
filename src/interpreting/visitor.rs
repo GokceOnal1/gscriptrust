@@ -659,6 +659,8 @@ impl Visitor {
     // -- ISSUE --
     // need to make AST::LIST's contents Vec<Rc<RefCell<ASTNode>>> instead of Vec<ASTNode>
     // to enabe getting a mutable reference to an inner element
+    // -- SOLUTION --
+    // did this
     pub fn visit_obj_index(&mut self, node : &ASTNode) -> ASTNode {
         match &node.kind {
             AST::OBJECT_INDEX { object, property } => {
@@ -720,14 +722,14 @@ impl Visitor {
                                 let vdef = scope.borrow().resolve_var(name.clone()).unwrap();
                                 vdef
                             }
-                            _ => return Rc::new(RefCell::new(ASTNode::new_noop()))
+                            _ => {println!("edging"); return Rc::new(RefCell::new(ASTNode::new_noop())) }
                         }
                     },
                     AST::VAR{name} => {
                         let odef = self.current_scope.borrow().resolve_var(name.clone()).unwrap();
                         odef
                     }
-                    _ => { println!("{:#?}", object); Rc::new(RefCell::new(ASTNode::new_noop())) }
+                    _ => {   Rc::new(RefCell::new(ASTNode::new_noop())) }
                 };
                 let obj_b = obj.borrow();
                 match &obj_b.kind {
@@ -743,7 +745,14 @@ impl Visitor {
                                             std::process::exit(1)
                                         }
                                     }
-                                    _ => Rc::new(RefCell::new(ASTNode::new_noop()))
+                                    AST::INDEX{..} => {
+                                        let oscope = self.current_scope.clone();
+                                        self.current_scope = scope.clone();
+                                        let mut_list_ref = self.list_get_mut(&property);
+                                        self.current_scope = oscope;
+                                        Rc::clone(&mut_list_ref)
+                                    }
+                                    _ => {  Rc::new(RefCell::new(ASTNode::new_noop())) }
                                 }     
                             }
                             _ => { println!("indexed property is not object"); std::process::exit(1) }
@@ -776,24 +785,57 @@ impl Visitor {
                         let new_value_einfo = new_value.einfo.clone();
                         let new_value_vardef = match &property.kind {
                             AST::VAR{name} => {
-                                ASTNode::new(AST::VAR_DEF{name : name.clone(), value : Box::new(new_value)}, new_value_einfo)
+                                ASTNode::new(AST::VAR_DEF{name : name.clone(), value : Box::new(new_value.clone())}, new_value_einfo.clone())
                             }
                             _ => ASTNode::new_noop()
                         };
+                        //obj_b is a var def in the case of a SIMPLE property, like var.x
                         if let AST::VAR_DEF { name: _, value:v } = &mut obj_b.kind {
                             if let AST::OBJECT { class_name: _, scope } = &v.kind {
                                 match &property.kind {
                                     AST::VAR{name} => {
+                                    
                                         let _ = scope.borrow_mut().set_var(name.clone(), &new_value_vardef);
                                     }
-                                    _ => return ASTNode::new_noop()
+                                    AST::INDEX{..} => {
+                                        let oscope = self.current_scope.clone();
+                                        self.current_scope = scope.clone();
+                                        let list_reassign = ASTNode::new(AST::LIST_REASSIGN{target: Box::new(*property.clone()), value: Box::new(new_value.clone())}, new_value_einfo.clone());
+                                        self.visit_list_reassign(&list_reassign);
+                                        self.current_scope = oscope;
+                                        
+                                    }
+                                    _ => { return ASTNode::new_noop()}
                                 }
                                 
                             } else {
                                 println!("not an obj");
                             }
+                        //HOWEVER, obj_b will not be a VAR_DEF because of the stupid way I implemented this...
+                        // it will instead be AST::OBJECT as a result of calling list_get_mut 
+                        // basically this is the exact same code as above
+                        // this bottom code will run when the gsc code looks like 'var.x[1].prop = 5'
+                        } else if let AST::OBJECT { class_name: _, scope } = &mut obj_b.kind {
+                            match &property.kind {
+                                AST::VAR{name} => {
+                                
+                                    let _ = scope.borrow_mut().set_var(name.clone(), &new_value_vardef);
+                                }
+                                //This is if the gsc code looks like 'var.x.prop[1] = 5'
+                                // it simply artificially creates a LIST_REASSIGN node and goes within the object's scope
+                                AST::INDEX{..} => {
+                                    let oscope = self.current_scope.clone();
+                                    self.current_scope = scope.clone();
+                                    let list_reassign = ASTNode::new(AST::LIST_REASSIGN{target: Box::new(*property.clone()), value: Box::new(new_value.clone())}, new_value_einfo.clone());
+                                    self.visit_list_reassign(&list_reassign);
+                                    self.current_scope = oscope;
+                                    
+                                }
+                                _ => { return ASTNode::new_noop()}
+                            }
+                            
                         } else {
-                            println!("not a vardef");
+                            println!("not an obj");
                         }
                         return ASTNode::new_noop()
 
@@ -814,6 +856,8 @@ impl Visitor {
     //--SOLUTION--
     //just self.visit target like normal and overwrite the old list value with the new one
     //--REVISED FUNCTION--
+    // -- UPDATE --
+    // made LIST's contents Vec<Rc<RefCell<ASTNode>>> so 
     pub fn visit_list_reassign(&mut self, node : &ASTNode) -> ASTNode {
         match &node.kind {
             AST::LIST_REASSIGN { target, value } => {
@@ -893,6 +937,68 @@ impl Visitor {
                 }
             }
             _ => ASTNode::new_noop()
+        }
+    }
+    // this gets a mutable reference (in the form of Rc<RefCell<ASTNode>>) to an element of an n-dimensional list
+    pub fn list_get_mut(&mut self, node : &ASTNode) -> Rc<RefCell<ASTNode>> {
+        match &node.kind {
+            AST::INDEX{target, indices} => {
+                let list_name = match &target.kind {
+                    AST::VAR{name} => name.clone(),
+                    _ => String::new()
+                }; 
+                let list_def_ref = self.current_scope.borrow().resolve_var(list_name.clone()).unwrap();
+                let list_def_ref_borrowed = list_def_ref.borrow();
+                match &list_def_ref_borrowed.kind {
+                    AST::VAR_DEF { name:_, value } => {
+                        
+                        match &value.kind {
+                            AST::LIST{contents: s_contents} => {
+                                let mut curr_ref = Rc::new(RefCell::new(ASTNode::new_noop()));
+                                for(i, i_node) in indices.iter().enumerate() {
+                                    let i_val = self.visit(i_node);
+                                    let actual_i = match i_val.kind {
+                                        AST::INT{int_value} => int_value,
+                                        _ => {
+                                            self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::ListError, "Expected integer to index list", i_val.einfo.clone()));
+                                            self.errorstack.borrow().terminate_gs();
+                                            0
+                                        }
+                                    };
+                                    if i == 0 {
+                                        curr_ref = s_contents[actual_i as usize].clone();
+                                        continue;
+                                    }
+                                    if i == indices.len() - 1 {
+                                        match &curr_ref.borrow().kind {
+                                            AST::LIST{contents} => {
+                                                return contents[actual_i as usize].clone();
+                                            }
+                                                _ => { println!("err1 {:#?}", curr_ref.borrow()); return Rc::new(RefCell::new(ASTNode::new_noop()))}
+                                        }
+                                    } else {
+                                        let thingy = curr_ref.clone();
+                                        let thingy2 = thingy.borrow();
+                                        match &thingy2.kind {
+                                            AST::LIST{contents} => {
+                                                curr_ref = contents[actual_i as usize].clone()
+                                            }
+                                            _ => return Rc::new(RefCell::new(ASTNode::new_noop()))
+                                        }
+                                    }
+                                }
+                                //println!("touhe {:#?}", curr_ref);
+
+                                curr_ref
+                                
+                            }
+                            _ => Rc::new(RefCell::new(ASTNode::new_noop()))
+                        }
+                    }
+                    _ => Rc::new(RefCell::new(ASTNode::new_noop()))
+                }
+            }
+            _ => Rc::new(RefCell::new(ASTNode::new_noop()))
         }
     }
     // SEVERE

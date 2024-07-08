@@ -67,3 +67,16 @@ a(thing);
 write(thing.p);
 \ end blueprints example 2 \
 \ ============================================================ \
+\ dot syntax example \
+blueprint Thing {
+    prop p;
+    method create(param pp) {
+        p = pp;
+    };
+};
+assign a = new Thing([1, [1, new Thing(5)], 3]);
+write(a);
+a.p[1][1].p = 1;
+write(a);
+\ end dot syntax example \
+\ ============================================================ \

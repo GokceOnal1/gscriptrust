@@ -1,10 +1,10 @@
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, rc::Rc, rc::Weak};
 use crate::ast::*;
 
 
 #[derive(Clone, Default, Debug)]
 pub struct Scope {
-    pub parent : Option<Rc<RefCell<Scope>>>,
+    pub parent : Option<Weak<RefCell<Scope>>>,
     pub variables : HashMap<String, Rc<RefCell<ASTNode>>>,
     pub functions : HashMap<String, ASTNode>,
     pub classes : HashMap<String, ASTNode>
@@ -12,7 +12,7 @@ pub struct Scope {
 impl Scope {
     pub fn new(parent : Option<Rc<RefCell<Scope>>>) -> Scope {
         Scope {
-            parent,
+            parent : parent.map(|p| Rc::downgrade(&p)),
             variables : HashMap::new(),
             functions : HashMap::new(),
             classes : HashMap::new(),
@@ -34,7 +34,13 @@ impl Scope {
     pub fn resolve_blueprint(& self, name : String) -> Option<ASTNode> {
         self.classes.get(&name).cloned().or_else(|| {
             if let Some(par) = self.parent.clone() {
-                par.borrow().resolve_blueprint(name)
+                if let Some(pscope) = par.upgrade() {
+                    pscope.borrow().resolve_blueprint(name)
+                } else {
+                    //println!("aris");
+                    None
+                }
+                
             } else {
                 None
             }
@@ -46,6 +52,7 @@ impl Scope {
                 if self.resolve_var(name.to_string()).is_some() {
                     return Err(format!("Variable '{}' already exists in the current scope", name));
                 } else {
+                   // println!("{:#?}",node);
                     self.variables.insert(name.clone(), Rc::new(RefCell::new(node.clone())));
                     return Ok(());
                 }
@@ -58,7 +65,12 @@ impl Scope {
             *existing = Rc::new(RefCell::new(node.clone()));
             Ok(())
         } else if let Some( par) = self.parent.clone() {
-            par.borrow_mut().set_var(name, node)
+            if let Some(pscope) = par.upgrade() {
+                pscope.borrow_mut().set_var(name, node)
+            } else {
+                Err(String::new())
+            }
+            
         } else {
             Err(format!("Variable '{}' does not exist in the current scope", name))
         }
@@ -79,7 +91,7 @@ impl Scope {
     pub fn resolve_var(& self, name : String) -> Option<Rc<RefCell<ASTNode>>> {
         self.variables.get(&name).cloned().or_else(|| {
             if let Some(par) = self.parent.clone() {
-                par.borrow().resolve_var(name)
+                par.upgrade().unwrap().borrow().resolve_var(name)
             } else {
                 None
             }
@@ -91,7 +103,7 @@ impl Scope {
     pub fn resolve_func(&self, name : String) -> Option<ASTNode> {
         self.functions.get(&name).cloned().or_else(|| {
             if let Some(par) = self.parent.clone() {
-                par.borrow().resolve_func(name)
+                par.upgrade().unwrap().borrow().resolve_func(name)
             } else {
                 None
             }
@@ -105,11 +117,7 @@ impl Scope {
         loop {
             let par = {
                 let borrowed_cs = cs.borrow();
-                if let Some(ref p) = borrowed_cs.parent {
-                    Some(Rc::clone(p))
-                } else {
-                    None
-                }
+                borrowed_cs.parent.as_ref().and_then(|p| p.upgrade())
             };
             match par {
                 Some(p) => cs = p,
@@ -122,11 +130,20 @@ impl Scope {
         match starting_scope {
             Some(s) => {
                 let new_s = Rc::new(RefCell::new(Scope::new(None)));
+                let s_borrowed = s.borrow();
                 for (name, vdef) in &s.borrow().variables {
                     new_s.borrow_mut().variables.insert(name.clone(), Rc::new(RefCell::new(vdef.borrow().clone())));
                 }
-                if s.borrow().parent.is_some() {
-                    new_s.borrow_mut().parent = Scope::deep_clone(s.borrow().parent.clone());
+                for (name, fdef) in &s.borrow().functions {
+                    new_s.borrow_mut().functions.insert(name.clone(), fdef.clone());
+                }
+                for (name, bdef) in &s.borrow().classes {
+                    new_s.borrow_mut().classes.insert(name.clone(), bdef.clone());
+                }
+                if let Some(ref parent) = s_borrowed.parent {
+                    if let Some(parent_scope) = parent.upgrade() {
+                        new_s.borrow_mut().parent = Scope::deep_clone(Some(parent_scope)).map(|p| Rc::downgrade(&p));
+                    }
                 }
                 Some(new_s)
             }

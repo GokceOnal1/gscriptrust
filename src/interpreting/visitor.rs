@@ -303,6 +303,7 @@ impl Visitor {
         }
     }
     pub fn visit_function_call(&mut self, node : &ASTNode, extern_scope : Option<Rc<RefCell<Scope>>>) -> ASTNode {
+        
         match &node.kind {
             AST::FUNC_CALL { name, args } => {
                 match name.as_str() {
@@ -334,10 +335,12 @@ impl Visitor {
                             //setting self.current_scope as the parent DOES NOT WORK in recursive scenarios
                             //solution: set the parent as some kind of global scope
                             // !! END ISSUE !!
+                            
                             let func_scope = match extern_scope {
                                 Some(s) => Rc::new(RefCell::new(Scope::new(Some(s.clone())))),
                                 None => Rc::new(RefCell::new(Scope::new(Some(Scope::get_root_scope(self.current_scope.clone())))))
                             };
+                            //println!("func_scope: {:#?}", func_scope);
                             for (argdef, arg) in fdef_args.iter().zip(args.iter()) {
                                 let arg_val = self.visit(arg);
 
@@ -405,12 +408,15 @@ impl Visitor {
                     return ASTNode::new_noop();
                 }
                 let val = self.visit(value);
+               // println!("{:#?}", val);
                 let var_def = ASTNode::new(AST::VAR_DEF { name: name.to_string(), value: Box::new(val) }, node.einfo.clone());
-                let res = self.current_scope.borrow_mut().add_var(&var_def );
+                let mut thingy = self.current_scope.borrow_mut();
+                let res = thingy.add_var(&var_def );
                 if let Err(s) = res {
                     self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::VariableDefinitionError, s.as_str(), node.einfo.clone()));
                     self.errorstack.borrow().terminate_gs();
                 }
+                //println!("{:#?}", self.current_scope.borrow().resolve_var("a".to_string()));
                 var_def
 
             },
@@ -441,8 +447,13 @@ impl Visitor {
                 if let Some(var_def) = self.current_scope.borrow().resolve_var(name.to_string()) {
                     match &var_def.borrow().kind {
                         AST::VAR_DEF { name: _ , value } => {
+
                             if let AST::OBJECT{class_name, scope} = &value.kind {
-                                return ASTNode::new(AST::OBJECT{class_name: class_name.clone(), scope: Scope::deep_clone(Some(scope.clone())).unwrap()}, node.einfo.clone())
+                               // println!("{:#?}", scope.borrow().parent.as_ref().unwrap().borrow().variables);
+                              // println!("{:#?}", scope);
+                                let scope = Scope::deep_clone(Some(scope.clone())).unwrap();
+                                
+                                return ASTNode::new(AST::OBJECT{class_name: class_name.clone(), scope }, node.einfo.clone())
                             }
                             return *value.clone()
                         },
@@ -667,6 +678,7 @@ impl Visitor {
                 let obj = self.visit(object);
                 match &obj.kind {
                     AST::OBJECT{ class_name, scope } => {
+                        //println!("{:#?}", scope);
                         match &property.kind {
                             AST::VAR{name} => {
                                 if let Some(val) = scope.borrow().resolve_var(name.clone()) {
@@ -683,6 +695,9 @@ impl Visitor {
                             AST::FUNC_CALL{..} => {
                                 let oscope = self.current_scope.clone();
                                 self.current_scope = scope.clone();
+                                //added alternate scope arg to visit_function_call
+                                //since we want globally defined blueprints to be visible within methods of other blueprints
+                              //  println!("{:#?}", self.current_scope);
                                 let res = self.visit_function_call(property, None);
                                 self.current_scope = oscope;
                                 res
@@ -1216,10 +1231,16 @@ impl Visitor {
                     match &blueprint.kind {
                         AST::CLASS { name: _, properties, methods} => {
                             let obj_scope = Rc::new(RefCell::new(Scope::new(None)));
+                            let root_scope = Scope::get_root_scope(self.current_scope.clone());
                             //adding properties
                             for (_name, prop) in properties {
                                 let _ = obj_scope.borrow_mut().add_var(prop);
                             }
+                            for (_name , bp) in &root_scope.borrow().classes {
+                                //println!("CHODE CHODE");
+                                let _ = obj_scope.borrow_mut().add_blueprint(bp);
+                            }
+                           // println!("methods len while visiting new: {}", methods.len());
                             if let Some(constructor) = methods.get("create") {
                                 self.current_scope = obj_scope.clone();
                                 self.visit(constructor);
@@ -1234,6 +1255,7 @@ impl Visitor {
                                 // -- SOLUTION --
                                 // above you can see that I visited the args before we visit the function call itself
                                 self.visit_function_call(&_constructor_call_node, Some(self.current_scope.clone()));
+                                //println!("{:#?}", obj_scope);
                                 //println!("{:#?}", self.current_scope);
                                 //adding methods
                                 let mut new_methods = methods.clone();
@@ -1242,6 +1264,7 @@ impl Visitor {
                                     let _ = self.current_scope.borrow_mut().add_func(&method);
                                 }
                                 self.current_scope = original_scope;
+                               // println!("{:#?}", obj_scope);
                                 ASTNode::new(AST::OBJECT { class_name : name.clone(), scope: obj_scope}, node.einfo.clone())
                             } else {
                                 //expected constructor method to exist error
@@ -1275,6 +1298,7 @@ impl Visitor {
     pub fn std_func_write(&mut self, args : &Vec<ASTNode> ) -> ASTNode {
         for arg in args {
             let ast = self.visit(arg);
+           // println!("ast in write: {:#?}", ast);
             print!("{}", self.node_to_string(&ast));
         }
         println!();

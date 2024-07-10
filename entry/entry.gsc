@@ -3,8 +3,23 @@ blueprint Thing {
     method create(param pp) {
         p = pp;
     };
+    method w() {
+        write("hello");
+    };
 };
-funct test() {
-    return [1,new Thing(1),3]
+blueprint TThing {
+    method create() {
+
+    };
+    method form() {
+        return [1,new Thing(5-2),3];
+    };
+    
 };
-write(test()[1].p);
+assign i = 0;
+while (i<10) {
+    i = i + 1;
+    assign a = new TThing();
+    write(a.form()[1].p);
+};
+

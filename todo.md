@@ -1,7 +1,7 @@
 This is a constantly evolving list of bugs and things to fix.
 It also includes features that I want to add in the future.
 # Bug Fixes
- - [ ] Make things like ```test()[1].p``` actually work in the parser
+ - [x] Make things like ```test()[1].p``` actually work in the parser
  - [ ] Fix ```get_root_scope``` (Currently it doesn't work when evaluating within an object's scope)
  For this I might want to just predefine a hard global scope and use that instead of having a function for it.
 # Questionable Fixes

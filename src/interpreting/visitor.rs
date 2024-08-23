@@ -727,6 +727,8 @@ impl Visitor {
     fn obj_index_mut(&mut self, node : &ASTNode) -> Rc<RefCell<ASTNode>> {
         match &node.kind {
             AST::OBJECT_INDEX { object, property } => {
+                //println!("object side: {:#?}", object);
+                //println!("property side: {:#?}", property);
                 let obj = match &object.kind {
                     AST::OBJECT_INDEX { .. } => {
                         self.obj_index_mut(object)
@@ -737,23 +739,26 @@ impl Visitor {
                                 let vdef = scope.borrow().resolve_var(name.clone()).unwrap();
                                 vdef
                             }
-                            _ => {println!("edging"); return Rc::new(RefCell::new(ASTNode::new_noop())) }
+                            _ => {println!("something"); return Rc::new(RefCell::new(ASTNode::new_noop())) }
                         }
                     },
                     AST::VAR{name} => {
                         let odef = self.current_scope.borrow().resolve_var(name.clone()).unwrap();
                         odef
                     }
-                    _ => {   Rc::new(RefCell::new(ASTNode::new_noop())) }
+                    _ => { println!("NOOO!"); Rc::new(RefCell::new(ASTNode::new_noop())) }
                 };
                 let obj_b = obj.borrow();
                 match &obj_b.kind {
-                    AST::VAR_DEF { name:_, value } => {
+                    AST::VAR_DEF { name: _, value } => {
+                        //println!("prop name: {}", n);
                         match &value.kind {
                             AST::OBJECT{class_name:_, scope} => {
                                 match &property.kind {
                                     AST::VAR{name} => {
+                                        //println!("prop name: {}", name);
                                         if let Some(val) = scope.borrow().resolve_var(name.clone()) {
+                                            //println!("val of p prop: {:#?}", val.clone());
                                             Rc::clone(&val)
                                         } else {
                                             println!("property does not exist in object");
@@ -767,10 +772,14 @@ impl Visitor {
                                         self.current_scope = oscope;
                                         Rc::clone(&mut_list_ref)
                                     }
-                                    _ => {  Rc::new(RefCell::new(ASTNode::new_noop())) }
+                                    _ => { Rc::new(RefCell::new(ASTNode::new_noop())) }
                                 }     
                             }
-                            _ => { println!("indexed property is not object"); std::process::exit(1) }
+                            _ => { 
+                                self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::SyntaxError, "Token indexed with dot is not an object", property.einfo.clone()));
+                                self.errorstack.borrow().terminate_gs();
+                                Rc::new(RefCell::new(ASTNode::new_noop()))
+                             }
                         }
                     }
                     _ => { println!("here"); std::process::exit(1) }
@@ -784,11 +793,12 @@ impl Visitor {
             AST::OBJECT_REASSIGN { object_index, value } => {
                 match &object_index.kind {
                     AST::OBJECT_INDEX { object, property } => {
+                        let mut ei = object.einfo.clone();
                         
                         let obj = match &object.kind {
                             //this is in the case that object is another OBJECT_INDEX
                             //as in var.x.y
-                            AST::OBJECT_INDEX { .. } => self.obj_index_mut(object),
+                            AST::OBJECT_INDEX { object:_, property:pr } => { ei = pr.einfo.clone(); self.obj_index_mut(object)} ,
                             //and this is the case where object would literally just be the identifier for the object
                             //like the 'var' in var.x
                             AST::VAR{name} => self.current_scope.borrow().resolve_var(name.clone()).unwrap(),
@@ -824,7 +834,8 @@ impl Visitor {
                                 }
                                 
                             } else {
-                                println!("not an obj");
+                                self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::SyntaxError, "Token indexed with dot is not an object", ei.clone()));
+                                self.errorstack.borrow().terminate_gs();
                             }
                         //HOWEVER, obj_b will not be a VAR_DEF because of the stupid way I implemented this...
                         // it will instead be AST::OBJECT as a result of calling list_get_mut 
@@ -850,7 +861,8 @@ impl Visitor {
                             }
                             
                         } else {
-                            println!("not an obj");
+                            self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::SyntaxError, "Token indexed with dot is not an object", ei.clone()));
+                            self.errorstack.borrow().terminate_gs();
                         }
                         return ASTNode::new_noop()
 
@@ -1237,7 +1249,6 @@ impl Visitor {
                                 let _ = obj_scope.borrow_mut().add_var(prop);
                             }
                             for (_name , bp) in &root_scope.borrow().classes {
-                                //println!("CHODE CHODE");
                                 let _ = obj_scope.borrow_mut().add_blueprint(bp);
                             }
                            // println!("methods len while visiting new: {}", methods.len());

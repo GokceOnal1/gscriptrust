@@ -239,7 +239,12 @@ impl<'a> Parser<'a> {
                 self.verify(TokenType::EQL);
                 self.advance();
                 let var_value = self.parse_comp_expr()?;
-                let var_def = ASTNode::new(AST::VAR_DEF { name: var_name.to_string(), value: Box::new(var_value) }, e);
+                let var_def = ASTNode::new(AST::VAR_DEF { name: var_name.to_string(), value: Box::new(var_value) }, e.clone());
+                if self.curr_token.is_some() && self.curr_token.unwrap().kind != TokenType::SEMI {
+                    let mut e = e.clone();
+                    e.set_endln();
+                    self.errorstack.borrow().warn(e, "Did you mean to put a semicolon here?");
+                }
                 return Some(var_def);
             }
             _ => None 

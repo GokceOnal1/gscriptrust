@@ -69,6 +69,10 @@ impl ErrorInfo {
     pub fn new(file : String, linecontents : String, line : usize, col : usize, col_end : usize) -> ErrorInfo {
         ErrorInfo {file, linecontents, line, col, col_end }
     }
+    pub fn set_endln(&mut self) {
+        self.col = self.linecontents.len();
+        self.col_end = self.col + 1;
+    }
 }
 pub struct ErrorStack {
     pub errors : Vec<GError>,
@@ -78,6 +82,25 @@ impl ErrorStack {
         ErrorStack {
             errors : Vec::new()
         }
+    }
+    pub fn warn(&self, einfo : ErrorInfo, warning : &str) {
+        eprintln!("{}{}{}{}{}\n{}{}\n  --> {}",
+            "in file ".yellow(),
+            einfo.file.yellow(),
+            ", at line ".yellow(),
+            einfo.line.to_string().yellow(),
+            ":".yellow(),
+            "warning: ".yellow().bold(),
+            warning.yellow(),
+            einfo.linecontents
+        );
+        for _i in 0..einfo.col+5 {
+            eprint!(" ");
+        }
+        for _i in 0..einfo.col_end-einfo.col {
+            eprint!("{}","^".yellow().bold());
+        }
+        eprintln!();
     }
     pub fn print_dump(&self) {
         if self.errors.len() != 0 {

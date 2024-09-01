@@ -715,7 +715,8 @@ impl Visitor {
                     }
                     _ => {
                         //indexed identifier is not an object error
-                        self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::SyntaxError, "Invalid use of dot operator on non-object", object.einfo.clone()));
+                        self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::SyntaxError, "Invalid use of dot operator on non-object", node.einfo.clone()));
+                        self.errorstack.borrow().terminate_gs();
                         ASTNode::new_noop()
                     }
                 }
@@ -776,7 +777,7 @@ impl Visitor {
                                 }     
                             }
                             _ => { 
-                                self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::SyntaxError, "Token indexed with dot is not an object", property.einfo.clone()));
+                                self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::SyntaxError, "Invalid use of dot operator on non-object", property.einfo.clone()));
                                 self.errorstack.borrow().terminate_gs();
                                 Rc::new(RefCell::new(ASTNode::new_noop()))
                              }
@@ -834,7 +835,7 @@ impl Visitor {
                                 }
                                 
                             } else {
-                                self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::SyntaxError, "Token indexed with dot is not an object", ei.clone()));
+                                self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::SyntaxError, "Invalid use of dot operator on non-object", ei.clone()));
                                 self.errorstack.borrow().terminate_gs();
                             }
                         //HOWEVER, obj_b will not be a VAR_DEF because of the stupid way I implemented this...

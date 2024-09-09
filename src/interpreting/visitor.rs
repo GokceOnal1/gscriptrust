@@ -1015,7 +1015,6 @@ impl Visitor {
                                         }
                                     }
                                 }
-                                //println!("touhe {:#?}", curr_ref);
 
                                 curr_ref
                                 

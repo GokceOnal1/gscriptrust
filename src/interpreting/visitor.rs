@@ -2,6 +2,7 @@ use crate::errors::error::*;
 use crate::parsing::ast::*;
 use crate::parsing::token::*;
 use crate::scope::*;
+use crate::stdfunc::*;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -307,9 +308,9 @@ impl Visitor {
         match &node.kind {
             AST::FUNC_CALL { name, args } => {
                 match name.as_str() {
-                    "write" => return self.std_func_write(args),
-                    "read" => return self.std_func_read(node, args),
-                    "ast_debug" => return self.std_func_debug(args), 
+                    "write" => return std_func_write(self, args),
+                    "read" => return std_func_read(self, node, args),
+                    "ast_debug" => return std_func_debug(self, args), 
                     _ => {}
                 }
                 //Interesting how I need to store the borrowed currscope in a local variable
@@ -1298,32 +1299,6 @@ impl Visitor {
         }
     }
 
-    //MOVE THESE TO A DIFFERENT FILE LATER
-    //??
-    pub fn std_func_debug(&mut self, args : &Vec<ASTNode>) -> ASTNode {
-        for arg in args {
-            println!("{:#?}", arg);
-        }
-        ASTNode::new_noop()
-    }
-    pub fn std_func_write(&mut self, args : &Vec<ASTNode> ) -> ASTNode {
-        for arg in args {
-            let ast = self.visit(arg);
-           // println!("ast in write: {:#?}", ast);
-            print!("{}", self.node_to_string(&ast));
-        }
-        println!();
-        ASTNode::new_noop()
-    }
-    pub fn std_func_read(&mut self, node : &ASTNode, args : &Vec<ASTNode>) -> ASTNode {
-        if args.len() != 0 {
-            self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::FunctionError, format!("Function 'read' requires 0 argument(s), not {}", args.len()).as_str(), node.einfo.clone()));
-            return ASTNode::new_noop();
-        } else {
-            let mut input = String::new();
-            let _ = std::io::stdin().read_line(&mut input).unwrap();
-            let input = input.trim_end().to_string();
-            return ASTNode::new(AST::STRING{str_value : input}, node.einfo.clone());
-        }
-    }
+    //stdfuncs are now in their own file
+    
 }

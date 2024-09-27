@@ -1,2 +1,2 @@
-assign str = assign;
-write(str);
+assign i = read();
+write(i + 9);

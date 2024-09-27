@@ -402,7 +402,7 @@ impl<'a> Parser<'a> {
         self.verify(TokenType::RBR);
         self.advance();
         if self.curr_token.is_some() && self.curr_token.unwrap().kind != TokenType::SEMI {
-            let einf = self.prev_token.unwrap().einfo;
+            let mut einf = self.prev_token.unwrap().einfo.clone();
             einf.set_endln();
             self.errorstack.borrow().warn(einf, "Did you mean to put a semicolon here?");
         }

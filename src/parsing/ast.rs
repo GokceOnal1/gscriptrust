@@ -92,6 +92,9 @@ pub enum AST {
         condition : Box<ASTNode>,
         body : Box<ASTNode>
     },
+    TYPE {
+        type_value : String
+    },
     BREAK,
     COMPOUND {
         compound_value : Vec<ASTNode>

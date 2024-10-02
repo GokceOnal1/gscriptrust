@@ -179,6 +179,9 @@ impl Visitor {
                                         //println!("{} == {}", x, y);
                                         return ASTNode::new(AST::BOOL { bool_value: x == y}, node.einfo.clone());
                                     },
+                                    (AST::TYPE{type_value:t1}, AST::TYPE{type_value:t2} ) => {
+                                        return ASTNode::new(AST::BOOL {bool_value : t1 == t2}, node.einfo.clone());
+                                    },
                                     _ => return ASTNode::new_noop()
                                 }
                             } else {
@@ -311,6 +314,7 @@ impl Visitor {
                     "write" => return std_func_write(self, args),
                     "read" => return std_func_read(self, node, args),
                     "ast_debug" => return std_func_debug(self, args), 
+                    "type" => return std_func_type(self, node, args),
                     _ => {}
                 }
                 //Interesting how I need to store the borrowed currscope in a local variable
@@ -618,7 +622,8 @@ impl Visitor {
                 }
                 s.push_str("\n}");
                 s
-            }
+            },
+            AST::TYPE{ type_value } => { type_value.to_string() }
             AST::NOOP => "no operation".to_string(),
             _ => format!("undefined: \n{:#?}", node).to_string()
         }

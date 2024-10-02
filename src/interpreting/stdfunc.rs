@@ -36,6 +36,17 @@ pub fn std_func_type(v : &mut Visitor, node : &ASTNode, args : &Vec<ASTNode>) ->
         v.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::FunctionError, format!("Function 'type' requires 1 argument(s), not {}", args.len()).as_str(), node.einfo.clone()));
         return ASTNode::new_noop();
     } else {
-        return ASTNode::new_noop();
+        let arg = v.visit(&args[0]);
+        let typeval : String;
+        match &arg.kind {
+            AST::STRING{..} => typeval = "String".to_string(),
+            AST::INT{..} => typeval = "Int".to_string(),
+            AST::FLOAT{..} => typeval = "Float".to_string(),
+            AST::BOOL{..} => typeval = "Boolean".to_string(),
+            AST::LIST{..} => typeval = "List_Obj".to_string(),
+            AST::OBJECT{class_name, ..} => typeval = class_name.clone(),
+            _ => typeval = "Null".to_string()
+        }
+        ASTNode::new(AST::TYPE{type_value : typeval}, args[0].einfo.clone())
     }
 }

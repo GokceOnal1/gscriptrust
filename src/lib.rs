@@ -6,7 +6,4 @@ pub use crate::errors::*;
 pub use crate::interpreting::*;
 
 
-pub fn testing() {
-    println!("testing")
-}
 

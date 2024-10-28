@@ -1,5 +1,6 @@
 \ ============================================================ \
 \ basic rock paper scissors \
+
 write("welcome to rock paper scissors");
 
 assign input = "none";
@@ -18,16 +19,20 @@ while(input != "e") {
         write("invalid input");
     };
 };
+
 \ end rock paper scissors example \
 \ ============================================================ \
 \ lists example \
-assign list = [1, ["chode", "gyatt"], 3];
+
+assign list = [1, ["some string", "another string"], 3];
 write(list);
 list[1][0] = 5;
 write(list);
+
 \ end lists example \
 \ ============================================================ \
 \ blueprints example \
+
 blueprint Car {
     prop brand;
     prop model;
@@ -45,29 +50,33 @@ assign myFirstCar = new Car("Toyota", "Prius", "grey", 2010);
 assign myCar = new Car(myFirstCar, "Forester", "green", 2016);
 write(myCar);
 write(myFirstCar);
+
 \ end blueprints example \
 \ ============================================================ \
 \ blueprints example 2 \
+
 blueprint Thing {
-    prop p;
-    method create(param pp) {
-        p = pp;
+    prop color;
+    method create(param c) {
+        color = c;
     };
     method speak(param input) {
-        write("aris ", p, " ", input);
+        write("hello ", p, " ", input);
     };
 };
 funct a(param th) {
-    th.p = 5;
-    write(th.p);
+    th.color = 5;
+    write(th.color);
 };
 
 assign thing = new Thing(1);
 a(thing);
-write(thing.p);
+write(thing.color);
+
 \ end blueprints example 2 \
 \ ============================================================ \
 \ dot syntax example \
+
 blueprint Thing {
     prop p;
     method create(param pp) {
@@ -78,9 +87,11 @@ assign a = new Thing([1, [1, new Thing(5)], 3]);
 write(a);
 a.p[1][1].p = 1;
 write(a);
+
 \ end dot syntax example \
 \ ============================================================ \
 \ dot syntax example 2 \
+
 blueprint Thing {
     prop p;
     method create(param pp) {
@@ -105,5 +116,6 @@ while (i<10) {
     assign a = new TThing();
     write(a.form()[1].w());
 };
+
 \ end dot syntax example 2 \
 \ ============================================================ \

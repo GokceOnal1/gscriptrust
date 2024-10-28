@@ -37,10 +37,8 @@ impl Scope {
                 if let Some(pscope) = par.upgrade() {
                     pscope.borrow().resolve_blueprint(name)
                 } else {
-                    //println!("aris");
                     None
                 }
-                
             } else {
                 None
             }

@@ -9,7 +9,7 @@ fn main() {
     std::env::set_var("RUST_BACKTRACE", "1");
 
     let args: Vec<String> = std::env::args().collect();
-
+    
     if args.len() != 3 {
         panic!("Command-Line Error: Expected 2 command line arguments: 'gscript [filename]'");
     }

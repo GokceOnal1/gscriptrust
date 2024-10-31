@@ -23,26 +23,26 @@ To access members, use this syntax: ```a.method(); a.prop1;```
 
 ## Keywords
 
--```assign``` Creates a variable, also requiring a value to be provided.
--```funct``` Declares a function.
--```if``` Runs contained code if the condition inside ```()``` evaluates to ```true```
--```param``` Declares a parameter of a function within the function definition
--```return``` Returns a value from a function
--```blueprint``` Defines a blueprint (class)
--```new``` Used for creating an instance of a blueprint
--```while``` Runs contained code as long as the condition inside ```()``` evaluates to ```true```
--```break``` Breaks out of a loop
+- ```assign``` Creates a variable, also requiring a value to be provided.
+- ```funct``` Declares a function.
+- ```if``` Runs contained code if the condition inside ```()``` evaluates to ```true```
+- ```param``` Declares a parameter of a function within the function definition
+- ```return``` Returns a value from a function
+- ```blueprint``` Defines a blueprint (class)
+- ```new``` Used for creating an instance of a blueprint
+- ```while``` Runs contained code as long as the condition inside ```()``` evaluates to ```true```
+- ```break``` Breaks out of a loop
 More to come...
 
 ## Standard Functions
 
--```ast_debug(args<AnyType>...)``` Prints out debug information about provided argument(s) in the form of its AST Node representation's fields
--```write(args<AnyType>...)``` Prints out provided arguments(s) to the standard output, generally the console
--```read()``` Prompts the user for a line from the standard input stream
--```type(arg1<AnyType>)``` Returns the type of arg1 as a String
--```to_int(arg1<String>)``` Converts arg1, a String, into its integer representation
--```to_float(arg1<String>)``` Converts arg2, a String, into its floating-point representation
--```random_int(arg1<Integer>, arg2<Integer>)``` Returns a random integer between arg1 and arg2, inclusive
+- ```ast_debug(args<AnyType>...)``` Prints out debug information about provided argument(s) in the form of its AST Node representation's fields
+- ```write(args<AnyType>...)``` Prints out provided arguments(s) to the standard output, generally the console
+- ```read()``` Prompts the user for a line from the standard input stream
+- ```type(arg1<AnyType>)``` Returns the type of arg1 as a String
+- ```to_int(arg1<String>)``` Converts arg1, a String, into its integer representation
+- ```to_float(arg1<String>)``` Converts arg2, a String, into its floating-point representation
+- ```random_int(arg1<Integer>, arg2<Integer>)``` Returns a random integer between arg1 and arg2, inclusive
 
 ## Standard Errors
 

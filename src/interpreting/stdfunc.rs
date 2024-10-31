@@ -41,7 +41,7 @@ pub fn std_func_type(v : &mut Visitor, node : &ASTNode, args : &Vec<ASTNode>) ->
         let typeval : String;
         match &arg.kind {
             AST::STRING{..} => typeval = "String".to_string(),
-            AST::INT{..} => typeval = "Int".to_string(),
+            AST::INT{..} => typeval = "Integer".to_string(),
             AST::FLOAT{..} => typeval = "Float".to_string(),
             AST::BOOL{..} => typeval = "Boolean".to_string(),
             AST::LIST{..} => typeval = "List_Obj".to_string(),
@@ -63,12 +63,14 @@ pub fn std_func_to_int(v : &mut Visitor, node : &ASTNode, args : &Vec<ASTNode>) 
             AST::STRING{str_value} => {
                 numval = str_value.clone().parse::<i32>().unwrap_or_else(|_| {
                     v.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::TypeError, format!("Could not cast '{}' to type 'Integer'", str_value).as_str(), node.einfo.clone()));
+                    v.errorstack.borrow().terminate_gs();
                     0
                 });
                 
             }
             _ => {
                 v.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::TypeError, format!("Invalid attempted type cast to type 'Integer'").as_str(), node.einfo.clone()));
+                v.errorstack.borrow().terminate_gs();
             }
         }
         ASTNode::new(AST::INT{int_value : numval}, node.einfo.clone())
@@ -86,12 +88,14 @@ pub fn std_func_to_float(v : &mut Visitor, node : &ASTNode, args : &Vec<ASTNode>
             AST::STRING{str_value} => {
                 numval = str_value.clone().parse::<f32>().unwrap_or_else(|_| {
                     v.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::TypeError, format!("Could not cast '{}' to type 'Float'", str_value).as_str(), node.einfo.clone()));
+                    v.errorstack.borrow().terminate_gs();
                     0.0
                 });
                 
             }
             _ => {
                 v.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::TypeError, format!("Invalid attempted type cast to type 'Float'").as_str(), node.einfo.clone()));
+                v.errorstack.borrow().terminate_gs();
             }
         }
         ASTNode::new(AST::FLOAT{float_value : numval}, node.einfo.clone())

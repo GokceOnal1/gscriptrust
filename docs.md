@@ -32,7 +32,7 @@ To access members, use this syntax: ```a.method(); a.prop1;```
 - ```new``` Used for creating an instance of a blueprint
 - ```while``` Runs contained code as long as the condition inside ```()``` evaluates to ```true```
 - ```break``` Breaks out of a loop
-More to come...
+<br> More to come...
 
 ## Standard Functions
 

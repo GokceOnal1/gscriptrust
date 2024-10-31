@@ -314,6 +314,9 @@ impl Visitor {
                     "read" => return std_func_read(self, node, args),
                     "ast_debug" => return std_func_debug(self, args), 
                     "type" => return std_func_type(self, node, args),
+                    "to_int" => return std_func_to_int(self, node, args),
+                    "to_float" => return std_func_to_float(self, node, args),
+                    "random_int" => return std_func_random_int(self, node, args),
                     _ => {}
                 }
                 //Interesting how I need to store the borrowed currscope in a local variable

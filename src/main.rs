@@ -7,7 +7,7 @@ use std::rc::Rc;
 
 fn main() {
     std::env::set_var("RUST_BACKTRACE", "1");
-    println!("ARIS");
+
     let args: Vec<String> = std::env::args().collect();
     
     if args.len() != 3 {

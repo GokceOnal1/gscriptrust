@@ -134,8 +134,34 @@ pub fn std_func_length(v : &mut Visitor, node : &ASTNode, args : &Vec<ASTNode>) 
             AST::LIST{contents} => {
                 ASTNode::new(AST::INT{int_value: contents.len() as i32}, node.einfo.clone())
             },
+            AST::STRING{str_value} => {
+                ASTNode::new(AST::INT{int_value: str_value.len() as i32}, node.einfo.clone())
+            }
             _ => {
                 ASTNode::new(AST::INT{int_value: 0}, node.einfo.clone())
+            }
+        }
+    }
+}
+pub fn std_func_replace(v : &mut Visitor, node : &ASTNode, args : &Vec<ASTNode>) -> ASTNode {
+    if args.len() != 3 {
+        v.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::FunctionError, format!("Function 'replace' requires 3 argument(s), not {}", args.len()).as_str(), node.einfo.clone()));
+        return ASTNode::new_noop();
+    } else {
+        let arg1 = v.visit(&args[0]);
+        let arg2 = v.visit(&args[1]);
+        let arg3 = v.visit(&args[2]);
+       // println!("{:#?} {:#?} {:#?}", arg1.kind.clone(), arg2.kind.clone(), arg3.kind.clone());
+        match (arg1.kind, arg2.kind, arg3.kind) {
+            (AST::STRING{str_value}, AST::INT{int_value}, AST::STRING{str_value: char_value}) => {
+                let mut strval : Vec<char> = str_value.clone().chars().collect();
+                strval[int_value as usize] = char_value.chars().nth(0).unwrap();
+                ASTNode::new(AST::STRING{str_value: strval.into_iter().collect()}, node.einfo.clone())
+            }
+            _ => {
+                
+                v.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::TypeError, format!("Invalid type(s) to function 'replace': Expected (String, Integer, Character)").as_str(), node.einfo.clone()));
+                ASTNode::new_noop()
             }
         }
     }

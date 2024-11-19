@@ -1,2 +1,3 @@
 assign str = "hello";
-write(str[2]);
+assign str1 = replace(str, 1, "x");
+write(str1);

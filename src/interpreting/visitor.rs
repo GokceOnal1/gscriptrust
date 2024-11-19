@@ -318,6 +318,7 @@ impl Visitor {
                     "to_float" => return std_func_to_float(self, node, args),
                     "random_int" => return std_func_random_int(self, node, args),
                     "length" => return std_func_length(self,node,args),
+                    "replace" => return std_func_replace(self, node, args),
                     _ => {}
                 }
                 //Interesting how I need to store the borrowed currscope in a local variable

@@ -1,5 +1,2 @@
-assign a = "hello";
-assign b = a;
-a = "h";
-write(a);
-write(b);
+2 + 3.5
+

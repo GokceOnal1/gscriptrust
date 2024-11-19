@@ -317,6 +317,7 @@ impl Visitor {
                     "to_int" => return std_func_to_int(self, node, args),
                     "to_float" => return std_func_to_float(self, node, args),
                     "random_int" => return std_func_random_int(self, node, args),
+                    "length" => return std_func_length(self,node,args),
                     _ => {}
                 }
                 //Interesting how I need to store the borrowed currscope in a local variable
@@ -661,6 +662,9 @@ impl Visitor {
                             }
                             combined_target = contents[ind_i as usize].borrow().clone()
                         },
+                        AST::STRING{ str_value: old} => {
+                            return ASTNode::new(AST::STRING{str_value : String::from(old.chars().nth(ind_i as usize).unwrap())}, node.einfo.clone())
+                        }
                         _ => {
                             //target is not a list error
                             self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::ListError, "Indexed target is not a list", combined_target.einfo.clone()));

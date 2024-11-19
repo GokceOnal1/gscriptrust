@@ -123,3 +123,20 @@ pub fn std_func_random_int(v : &mut Visitor, node : &ASTNode, args : &Vec<ASTNod
         }
     }
 }
+pub fn std_func_length(v : &mut Visitor, node : &ASTNode, args : &Vec<ASTNode>) -> ASTNode {
+    if args.len() != 1 {
+        v.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::FunctionError, format!("Function 'length' requires 1 argument(s), not {}", args.len()).as_str(), node.einfo.clone()));
+        return ASTNode::new_noop();
+    } else {
+        let arg1 = v.visit(&args[0]);
+
+        match arg1.kind {
+            AST::LIST{contents} => {
+                ASTNode::new(AST::INT{int_value: contents.len() as i32}, node.einfo.clone())
+            },
+            _ => {
+                ASTNode::new(AST::INT{int_value: 0}, node.einfo.clone())
+            }
+        }
+    }
+}

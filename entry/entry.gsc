@@ -1,2 +1,2 @@
-2 + 3.5
-
+assign str = "hello";
+write(str[2]);

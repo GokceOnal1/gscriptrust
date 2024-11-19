@@ -1,8 +1,8 @@
 funct waicy_thing(param protein_sequence, param ranges, param amino_acids) {
     assign i = 0;
-    while( i < ranges.length ) {
-        assign r = random_int(0, amino_acids.length-1);
-        protein_sequence.replace(ranges[i], amino_acids.get(r) );
+    while( i < length(ranges) ) {
+        assign r = random_int(0, length(amino_acids)-1);
+        protein_sequence.replace(ranges[i], amino_acids[r] );
         i = i + 1;
     };
     return protein_sequence;

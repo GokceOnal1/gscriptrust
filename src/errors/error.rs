@@ -56,6 +56,13 @@ impl GError {
             etype, message : message.to_string(), file : einfo.file, linecontents : einfo.linecontents, line : einfo.line, col : einfo.col, col_end : einfo.col_end 
         }
     }
+    pub fn command_line(id: i32, message : &str) {
+        eprintln!("{}{}{}{}", "Command-Line Error - code ".bright_red(),
+        id.to_string().bright_red(),
+        ": ".bright_red(),
+        message.to_owned().bright_red()    
+    );
+    }
 }
 #[derive(Clone, Debug)]
 pub struct ErrorInfo {

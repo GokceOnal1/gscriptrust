@@ -11,7 +11,7 @@ fn main() {
     let args: Vec<String> = std::env::args().collect();
     
     if args.len() != 3 {
-        GError::command_line(1, "Expected 2 command line arguments: 'gscript [filename]'");
+        GError::command_line(1, "Expected 2 command line arguments: \n'gscript [filename]'");
         std::process::exit(1);
     }
     if args[1] != "gscript" {

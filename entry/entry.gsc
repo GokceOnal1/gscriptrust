@@ -1,3 +1,1 @@
-while(true) {
-    write("hello");
-};
+write("arissssss");

@@ -35,8 +35,8 @@ impl Lexer {
                 self.skip_comments();
                 continue;
             }  
-            if c == '"' {
-                self.collect_str();
+            if c == '"' || c == '\'' {
+                self.collect_str(c);
                 continue;
             }
             if c.is_ascii_digit() {
@@ -104,17 +104,20 @@ impl Lexer {
     }
     // -- TODO --
     // fix issue with collecting string with a forgotten closing quote
-    fn collect_str(&mut self) {
+    fn collect_str(&mut self, schar: char) {
         let starting_c = self.currchar;
         self.curri += 1;
         self.currchar += 1;
         let mut s : Vec<char> = Vec::new();
         while let Some(&c) = self.source.get(self.curri) {
-            if c == '"' {
+            if c == schar {
                 self.curri += 1;
                 self.currchar += 1;
                 self.tokens.push(Token::new(TokenType::STRING(s.iter().collect()), ErrorInfo::new(self.filename.clone(), self.sourcelines.get(self.currline-1).unwrap().to_string(), self.currline, starting_c, self.currchar+1)));
                 return;
+            } else if c == '\n' {
+                self.errorstack.borrow_mut().flag(EFlags::CloseString);
+                self.errorstack.borrow().warn(ErrorInfo::new(self.filename.clone(), self.sourcelines.get(self.currline-1).unwrap().to_string(), self.currline, starting_c, self.currchar+1), "Did you mean to close this string?");
             }
             s.push(c);
             self.curri += 1;

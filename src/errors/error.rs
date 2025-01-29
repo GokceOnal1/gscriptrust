@@ -17,6 +17,12 @@ pub enum ETypes {
     BlueprintError,
     IdentifierError
 }
+#[derive(Debug)]
+pub enum EFlags {
+    NoFlag,
+    Semicolon,
+    CloseString
+}
 impl std::fmt::Display for ETypes {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
@@ -83,11 +89,13 @@ impl ErrorInfo {
 }
 pub struct ErrorStack {
     pub errors : Vec<GError>,
+    current_flag : EFlags
 }
 impl ErrorStack {
     pub fn new() -> ErrorStack {
         ErrorStack {
-            errors : Vec::new()
+            errors : Vec::new(),
+            current_flag: EFlags::NoFlag
         }
     }
     pub fn warn(&self, einfo : ErrorInfo, warning : &str) {
@@ -99,7 +107,7 @@ impl ErrorStack {
             ":".yellow(),
             "warning: ".yellow().bold(),
             warning.yellow(),
-            einfo.linecontents
+            einfo.linecontents,
         );
         for _i in 0..einfo.col+5 {
             eprint!(" ");
@@ -107,7 +115,11 @@ impl ErrorStack {
         for _i in 0..einfo.col_end-einfo.col {
             eprint!("{}","^".yellow().bold());
         }
+        eprint!("\n(flag {:#?})", self.current_flag);
         eprintln!();
+    }
+    pub fn flag(&mut self, f: EFlags) {
+        self.current_flag = f;
     }
     pub fn print_dump(&self) {
         if self.errors.len() != 0 {

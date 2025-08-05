@@ -41,6 +41,7 @@ impl Visitor {
             AST::NEW{..} => { return self.visit_new(node); }
             AST::OBJECT_INDEX { .. } => { return self.visit_obj_index(node); }
             AST::OBJECT_REASSIGN { .. } => { return self.visit_obj_reassign(node); }
+            AST::IMPORT{ .. } => { return self.visit_import(node); }
             AST::COMPOUND{ compound_value } => { 
                 for ast in compound_value { 
                     let res = self.visit(ast); 
@@ -1124,6 +1125,30 @@ impl Visitor {
                     ASTNode::new_noop()
                 }
             },
+            _ => ASTNode::new_noop()
+        }
+    }
+
+    pub fn visit_import(&mut self, node: &ASTNode) -> ASTNode {
+        match &node.kind {
+            AST::IMPORT{ filename, object_name} => {
+                let mut lexer = crate::parsing::lexer::Lexer::new(&format!("entry/{}", filename.clone()), Rc::clone(&self.errorstack));
+                lexer.lex();
+                let mut parser = crate::parsing::parser::Parser::new(&lexer.tokens, Rc::clone(&self.errorstack));
+                let ast_compound = parser.parse_compound().unwrap();
+                let starting_scope = self.current_scope.clone();
+                self.current_scope = Rc::new(RefCell::new(Scope::new(None)));
+                self.visit(&ast_compound);
+                let import_object = ASTNode::new(AST::OBJECT{ class_name: "import object".to_string(), scope: self.current_scope.clone()}, node.einfo.clone());
+                self.current_scope = starting_scope;
+                let import_object_def = ASTNode::new(AST::VAR_DEF { name: object_name.clone(), value: Box::new(import_object) }, node.einfo.clone());
+                let res = self.current_scope.borrow_mut().add_var(&import_object_def);
+                if let Err(s) = res {
+                    self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::VariableDefinitionError, s.as_str(), node.einfo.clone()));
+                    self.errorstack.borrow().terminate_gs();
+                }
+                ASTNode::new_noop()
+            }
             _ => ASTNode::new_noop()
         }
     }

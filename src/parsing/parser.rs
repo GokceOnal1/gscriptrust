@@ -231,8 +231,20 @@ impl<'a> Parser<'a> {
     }
     pub fn parse_import(&mut self) -> Option<ASTNode> {
         self.advance();
+        let fname: String = match &self.curr_token?.kind {
+            TokenType::STRING(filename) => { filename.clone() },
+            _ => { "".to_string() }
+        };
+        self.advance();
+        self.verify(TokenType::RARW);
+        self.advance();
+        let oname: String = match &self.curr_token?.kind {
+            TokenType::ID(object_name) => {object_name.clone()},
+            _ => { "".to_string() }
+        };
+        self.advance();
         
-        return None
+        Some(ASTNode::new(AST::IMPORT{ filename: fname, object_name: oname}, self.curr_token?.einfo.clone()))
     }
     //DONE
     pub fn parse_variable_definition(&mut self) -> Option<ASTNode> {

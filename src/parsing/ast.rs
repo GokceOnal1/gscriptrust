@@ -99,6 +99,10 @@ pub enum AST {
     COMPOUND {
         compound_value : Vec<ASTNode>
     },
+    IMPORT {
+        filename : String,
+        object_name : String
+    },
     NOOP,
     EOF
     

@@ -1,1 +1,4 @@
-write(5-2);
+import "math.gsc" -> Math;
+
+write(Math);
+write(Math.thing());

@@ -1,1 +1,1 @@
-write("hello );
+write(5-2);

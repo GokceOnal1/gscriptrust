@@ -65,7 +65,7 @@ impl Lexer {
                 '[' => { self.tokens.push(Token::new(TokenType::LSQB, ErrorInfo::new(self.filename.clone(), self.sourcelines.get(self.currline-1).unwrap().to_string(), self.currline, self.currchar, self.currchar+1)));}
                 ']' => { self.tokens.push(Token::new(TokenType::RSQB, ErrorInfo::new(self.filename.clone(), self.sourcelines.get(self.currline-1).unwrap().to_string(), self.currline, self.currchar, self.currchar+1)));}
                 '+' => { self.tokens.push(Token::new(TokenType::PLS, ErrorInfo::new(self.filename.clone(), self.sourcelines.get(self.currline-1).unwrap().to_string(), self.currline, self.currchar, self.currchar+1)));}
-                '-' => { self.tokens.push(Token::new(TokenType::MIN, ErrorInfo::new(self.filename.clone(), self.sourcelines.get(self.currline-1).unwrap().to_string(), self.currline, self.currchar, self.currchar+1)));}
+                '-' => { self.collect_rarrow(); continue; }
                 '*' => { self.tokens.push(Token::new(TokenType::MUL, ErrorInfo::new(self.filename.clone(), self.sourcelines.get(self.currline-1).unwrap().to_string(), self.currline, self.currchar, self.currchar+1)));}
                 '/' => { self.tokens.push(Token::new(TokenType::DIV, ErrorInfo::new(self.filename.clone(), self.sourcelines.get(self.currline-1).unwrap().to_string(), self.currline, self.currchar, self.currchar+1)));}
                 '.' => { self.tokens.push(Token::new(TokenType::DOT, ErrorInfo::new(self.filename.clone(), self.sourcelines.get(self.currline-1).unwrap().to_string(), self.currline, self.currchar, self.currchar+1)));}
@@ -226,6 +226,17 @@ impl Lexer {
             return;
         }
         self.tokens.push(Token::new(TokenType::NOT, ErrorInfo::new(self.filename.clone(), self.sourcelines.get(self.currline-1).unwrap().to_string(), self.currline, self.currchar-1, self.currchar)));
+    }
+    fn collect_rarrow(&mut self) {
+        self.curri += 1;
+        self.currchar += 1;
+        if self.curri != self.source.len() && self.source.get(self.curri).unwrap() == &'>' {
+            self.tokens.push(Token::new(TokenType::RARW, ErrorInfo::new(self.filename.clone(), self.sourcelines.get(self.currline-1).unwrap().to_string(), self.currline, self.currchar-1, self.currchar)));
+            self.curri += 1;
+            self.currchar += 1;
+            return;
+        }
+        self.tokens.push(Token::new(TokenType::MIN, ErrorInfo::new(self.filename.clone(), self.sourcelines.get(self.currline-1).unwrap().to_string(), self.currline, self.currchar-1, self.currchar)));
     }
     
 }

@@ -212,6 +212,7 @@ impl<'a> Parser<'a> {
                     "if" => self.parse_if(),
                     "while" => self.parse_while(),
                     "break" => self.parse_break(),
+                    "import" => self.parse_import(),
                     "true" => {
                         let res = Some(ASTNode::new(AST::BOOL{ bool_value : true }, self.curr_token?.einfo.clone()));
                         self.advance();
@@ -227,6 +228,11 @@ impl<'a> Parser<'a> {
             }
             _ => None
         }
+    }
+    pub fn parse_import(&mut self) -> Option<ASTNode> {
+        self.advance();
+        
+        return None
     }
     //DONE
     pub fn parse_variable_definition(&mut self) -> Option<ASTNode> {

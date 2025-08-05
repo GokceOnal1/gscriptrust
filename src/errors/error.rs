@@ -115,7 +115,7 @@ impl ErrorStack {
         for _i in 0..einfo.col_end-einfo.col {
             eprint!("{}","^".yellow().bold());
         }
-        eprint!("\n(flag {:#?})", self.current_flag);
+        eprint!("\n(flag {})", format!("{:#?}", self.current_flag).yellow());
         eprintln!();
     }
     pub fn flag(&mut self, f: EFlags) {

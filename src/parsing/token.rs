@@ -31,6 +31,7 @@ pub enum TokenType {
     MUL,
     DIV,
     DOT,
+    RARW,
     EOF
 }
 pub struct Token {
@@ -75,6 +76,7 @@ impl Token {
                 TokenType::MUL => println!("MUL"),
                 TokenType::DIV => println!("DIV"),
                 TokenType::DOT => println!("DOT"),
+                TokenType::RARW => println!("RAWR"),
                 TokenType::EOF => println!("END OF FILE")
                 //_ => println!("UNPRINTABLE TOKEN"),
             }

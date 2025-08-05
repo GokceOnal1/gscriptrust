@@ -17,7 +17,7 @@ impl Visitor {
         Visitor { 
             errorstack, 
             current_scope : Rc::new(RefCell::new(Scope::new(None))), 
-            keywords : vec!["assign", "funct", "if", "param", "return", "blueprint", "new", "while", "break", "true", "false"].iter().map(|x| x.to_string()).collect()
+            keywords : vec!["assign", "funct", "if", "param", "return", "blueprint", "new", "while", "break", "true", "false", "import"].iter().map(|x| x.to_string()).collect()
         }
     }
     pub fn visit(&mut self, node : &ASTNode) -> ASTNode {

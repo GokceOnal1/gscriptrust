@@ -3,6 +3,8 @@ use crate::visitor::*;
 use crate::parsing::ast::*;
 use rand::Rng;
 
+
+
 ///GScript: Writes formatted AST to stdout
 pub fn std_func_debug(_v : &mut Visitor, args : &Vec<ASTNode>) -> ASTNode {
     for arg in args {
@@ -163,6 +165,18 @@ pub fn std_func_replace(v : &mut Visitor, node : &ASTNode, args : &Vec<ASTNode>)
                 v.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::TypeError, format!("Invalid type(s) to function 'replace': Expected (String, Integer, Character)").as_str(), node.einfo.clone()));
                 ASTNode::new_noop()
             }
+        }
+    }
+}
+#[allow(non_snake_case)]
+pub fn std_func_PRIMITIVE(v : &mut Visitor, node : &ASTNode, args : &Vec<ASTNode>) -> ASTNode {
+    if args.len() != 1 {
+        v.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::FunctionError, format!("Function '_PRIMITIVE' requires 1 argument(s), not {}", args.len()).as_str(), node.einfo.clone()));
+        return ASTNode::new_noop();
+    } else {
+        match &args[0].kind {
+            AST::STRING{ .. } | AST::INT{..} | AST::FLOAT{..} => args[0].clone(),
+            _ => ASTNode::new_noop()
         }
     }
 }

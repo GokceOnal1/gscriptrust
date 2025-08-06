@@ -1,4 +1,1 @@
-import "math.gsc" -> Math;
-
-write(Math);
-write(Math.thing());
+import "entry.gsc" -> Math;

@@ -142,3 +142,14 @@ while(guess != num) {
 
 \ end guessing game example \
 \ ============================================================ \
+\ future of primitive types example \
+
+assign primitive_int = _PRIMITIVE(5);
+assign primitive_string = _PRIMITIVE("hello");
+
+assign complex_string = "goodbye"
+write(complex_string.length);
+write("tspmo".length);
+
+\ end future of primitive types example \
+\ ============================================================ \

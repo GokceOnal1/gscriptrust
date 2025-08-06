@@ -19,7 +19,7 @@ impl Lexer {
     pub fn new(filename : &str, errorstack : Rc<RefCell<ErrorStack>>) -> Lexer {
         let filename = filename.to_string();
         let s: String = fs::read_to_string(&filename).unwrap_or_else(|e| {
-            errorstack.borrow_mut().errors.push(GError::new(ETypes::FileError, &e.to_string(), String::new(), String::from("lexer_file_error"), 0, 0, 0));
+            errorstack.borrow_mut().errors.push(GError::new(ETypes::FileError, &format!("(query file {})\n  {}", filename.clone(), &e.to_string()), String::new(), String::from("lexer_file_error"), 0, 0, 0));
             errorstack.borrow_mut().terminate_gs();
             std::process::exit(1);
         });

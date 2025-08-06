@@ -15,7 +15,8 @@ pub enum ETypes {
     TypeError,
     ListError,
     BlueprintError,
-    IdentifierError
+    IdentifierError,
+    ImportError
 }
 #[derive(Debug)]
 pub enum EFlags {
@@ -38,7 +39,8 @@ impl std::fmt::Display for ETypes {
             Self::TypeError => write!(f, "TypeError"),
             Self::ListError => write!(f, "ListError"),
             Self::BlueprintError => write!(f, "BlueprintError"),
-            Self::IdentifierError => write!(f, "IdentifierError")
+            Self::IdentifierError => write!(f, "IdentifierError"),
+            Self::ImportError => write!(f, "ImportError")
         }
     }
 }
@@ -121,23 +123,37 @@ impl ErrorStack {
     pub fn flag(&mut self, f: EFlags) {
         self.current_flag = f;
     }
+    fn line_whitespace(&self, num : usize, empty : bool) -> String {
+        let width = num.to_string().chars().count();
+        if empty {
+            return " ".repeat(width+2);
+        } else {
+            return format!("{}{}", num.to_string(), " ".repeat(2));
+        }
+    }
+    fn line_whitespace_count(&self, num : usize) -> usize {
+        num.to_string().chars().count()+2
+    }
     pub fn print_dump(&self) {
         if self.errors.len() != 0 {
             eprintln!("{}","-----------------------------------------".red());
         }
         for error in &self.errors {
             eprintln!(
-                "{}{}{}{}{}{} \n  {}{} {} \n  --> {} ",
+                "{}{}{}{}{}{} \n{}{}{}{}\n{}| \n{}| --> {}",
                 "gscript ".red().italic(),
                 error.file.truecolor(186, 149, 48), 
                 ": Line ".red(),
                 error.line.to_string().red(), 
                 ", Char ".red(),
-                error.col.to_string().red(), error.etype.to_string().red().bold(), ":".red().bold(), error.message.red(), error.linecontents.bold()
+                error.col.to_string().red(), 
+                self.line_whitespace(error.line, true), 
+                error.etype.to_string().red().bold(), ": ".red().bold(), 
+                error.message.red(),self.line_whitespace(error.line, true), 
+                self.line_whitespace(error.line, false), 
+                error.linecontents.bold(), 
             );
-            for _i in 0..error.col+5 {
-                eprint!(" ");
-            }
+            eprint!("{}"," ".repeat(error.col+5+self.line_whitespace_count(error.line)));
             for _i in 0..error.col_end-error.col {
                 eprint!("{}","^".red().bold());
             }

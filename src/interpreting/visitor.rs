@@ -320,6 +320,7 @@ impl Visitor {
                     "random_int" => return std_func_random_int(self, node, args),
                     "length" => return std_func_length(self,node,args),
                     "replace" => return std_func_replace(self, node, args),
+                    "_PRIMITIVE" => return std_func_PRIMITIVE(self, node, args),
                     _ => {}
                 }
                 //Interesting how I need to store the borrowed currscope in a local variable
@@ -1132,6 +1133,11 @@ impl Visitor {
     pub fn visit_import(&mut self, node: &ASTNode) -> ASTNode {
         match &node.kind {
             AST::IMPORT{ filename, object_name} => {
+                if &format!("entry/{}", filename) == &node.einfo.file {
+                    self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::ImportError, format!("File import cannot match containing file").as_str(), node.einfo.clone()));
+                    self.errorstack.borrow().terminate_gs();
+                    return ASTNode::new_noop()
+                }
                 let mut lexer = crate::parsing::lexer::Lexer::new(&format!("entry/{}", filename.clone()), Rc::clone(&self.errorstack));
                 lexer.lex();
                 let mut parser = crate::parsing::parser::Parser::new(&lexer.tokens, Rc::clone(&self.errorstack));

@@ -129,20 +129,17 @@ impl Scope {
             Some(s) => {
                 let new_s = Rc::new(RefCell::new(Scope::new(None)));
                 let s_borrowed = s.borrow();
-                for (name, vdef) in &s.borrow().variables {
+                for (name, vdef) in &s_borrowed.variables {
                     new_s.borrow_mut().variables.insert(name.clone(), Rc::new(RefCell::new(vdef.borrow().clone())));
                 }
-                for (name, fdef) in &s.borrow().functions {
+                for (name, fdef) in &s_borrowed.functions {
                     new_s.borrow_mut().functions.insert(name.clone(), fdef.clone());
                 }
-                for (name, bdef) in &s.borrow().classes {
+                for (name, bdef) in &s_borrowed.classes {
                     new_s.borrow_mut().classes.insert(name.clone(), bdef.clone());
                 }
-                if let Some(ref parent) = s_borrowed.parent {
-                    if let Some(parent_scope) = parent.upgrade() {
-                        new_s.borrow_mut().parent = Scope::deep_clone(Some(parent_scope)).map(|p| Rc::downgrade(&p));
-                    }
-                }
+                // Do not recurse on parent to avoid cycles; just share the parent (Copilot edited ts)
+                new_s.borrow_mut().parent = s_borrowed.parent.clone();
                 Some(new_s)
             }
             None => None

@@ -243,6 +243,7 @@ impl<'a> Parser<'a> {
             _ => { "".to_string() }
         };
         self.advance();
+        self._warn_semi();  
         
         Some(ASTNode::new(AST::IMPORT{ filename: fname, object_name: oname}, self.curr_token?.einfo.clone()))
     }
@@ -258,12 +259,7 @@ impl<'a> Parser<'a> {
                 self.advance();
                 let var_value = self.parse_comp_expr()?;
                 let var_def = ASTNode::new(AST::VAR_DEF { name: var_name.to_string(), value: Box::new(var_value) }, e.clone());
-                if self.curr_token.is_some() && self.curr_token.unwrap().kind != TokenType::SEMI {
-                    let mut e = e.clone();
-                    self.errorstack.borrow_mut().flag(EFlags::Semicolon);
-                    e.set_endln();
-                    self.errorstack.borrow().warn(e, "Did you mean to put a semicolon here?");
-                }
+                self._warn_semi();
                 return Some(var_def);
             }
             _ => None 
@@ -420,11 +416,7 @@ impl<'a> Parser<'a> {
         let func_body = self.parse_compound()?;
         self.verify(TokenType::RBR);
         self.advance();
-        if self.curr_token.is_some() && self.curr_token.unwrap().kind != TokenType::SEMI {
-            let mut einf = self.prev_token.unwrap().einfo.clone();
-            einf.set_endln();
-            self.errorstack.borrow().warn(einf, "Did you mean to put a semicolon here?");
-        }
+        self._warn_semi();
         Some(ASTNode::new(AST::FUNC_DEF { body: Box::new(func_body), name: func_name, args: func_args }, e))
     }
     //DONE
@@ -653,6 +645,15 @@ impl<'a> Parser<'a> {
             }
         } else {
             None
+        }
+    }
+
+    fn _warn_semi(&mut self) {
+        if self.curr_token.is_some() && self.curr_token.unwrap().kind != TokenType::SEMI {
+            let mut e = self.prev_token.unwrap().einfo.clone();
+            self.errorstack.borrow_mut().flag(EFlags::Semicolon);
+            e.set_endln();
+            self.errorstack.borrow().warn(e, "Did you mean to put a semicolon here?");
         }
     }
     

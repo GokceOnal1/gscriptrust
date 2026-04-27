@@ -713,7 +713,7 @@ impl Visitor {
                                 //added alternate scope arg to visit_function_call
                                 //since we want globally defined blueprints to be visible within methods of other blueprints
                               //  println!("{:#?}", self.current_scope);
-                                let res = self.visit_function_call(property, None);
+                                let res = self.visit_function_call(property, Some(scope.clone()));
                                 self.current_scope = oscope;
                                 res
                             }
@@ -821,8 +821,8 @@ impl Visitor {
                             _ => Rc::new(RefCell::new(ASTNode::new_noop()))
                         };
                         
-                        let mut obj_b = obj.borrow_mut();
                         let new_value = self.visit(&value);
+                        let mut obj_b = obj.borrow_mut();
                         let new_value_einfo = new_value.einfo.clone();
                         let new_value_vardef = match &property.kind {
                             AST::VAR{name} => {
@@ -1074,7 +1074,8 @@ impl Visitor {
                     let class_e = blueprint.einfo.clone();
                     match &blueprint.kind {
                         AST::CLASS { name: _, properties, methods} => {
-                            let obj_scope = Rc::new(RefCell::new(Scope::new(None)));
+                            let obj_scope = Rc::new(RefCell::new(Scope::new(Some(original_scope.clone()))));
+                            //let obj_scope = Rc::new(RefCell::new(Scope::new(None)));
                             let root_scope = Scope::get_root_scope(self.current_scope.clone());
                             //adding properties
                             for (_name, prop) in properties {
@@ -1086,28 +1087,23 @@ impl Visitor {
                            // println!("methods len while visiting new: {}", methods.len());
                             if let Some(constructor) = methods.get("create") {
                                 self.current_scope = obj_scope.clone();
-                                self.visit(constructor);
+                                let fdef_args = if let AST::FUNC_DEF { args: fa, .. } = &constructor.kind { fa } else { &vec![] };
+                                for (argdef, arg) in fdef_args.iter().zip(new_args.iter()) {
+                                    let arg_val = self.visit(arg);
+                                    if let AST::VAR_DEF{name: argdef_name, ..} = &argdef.kind {
+                                        let _ = obj_scope.borrow_mut().add_var(&ASTNode::new(AST::VAR_DEF { name: argdef_name.clone() , value: Box::new(arg_val) }, arg.einfo.clone()));
+                                    }
+                                }
+                                if let AST::FUNC_DEF { body: fbody, .. } = &constructor.kind {
+                                    self.visit(fbody);
+                                }
                                 self.current_scope = original_scope.clone();
-                                let _constructor_call_node = ASTNode::new(AST::FUNC_CALL { name: String::from("create"), args: new_args.clone().iter().map(|x| self.visit(x)).collect() }, node.einfo.clone());
-                                self.current_scope = obj_scope.clone();
-                                //scoping issue fixed
-                                //here we use the alternate functionality of visit_function_call by giving some instead of none
-                                // -- ISSUE --
-                                //args to constructor are not being evaluated in the correct scope,
-                                //they should be evaluated in global scope but instead are being evaluated in obj scope
-                                // -- SOLUTION --
-                                // above you can see that I visited the args before we visit the function call itself
-                                self.visit_function_call(&_constructor_call_node, Some(self.current_scope.clone()));
-                                //println!("{:#?}", obj_scope);
-                                //println!("{:#?}", self.current_scope);
                                 //adding methods
                                 let mut new_methods = methods.clone();
                                 new_methods.remove("create");
                                 for (_name, method) in new_methods {
-                                    let _ = self.current_scope.borrow_mut().add_func(&method);
+                                    let _ = obj_scope.borrow_mut().add_func(&method);
                                 }
-                                self.current_scope = original_scope;
-                               // println!("{:#?}", obj_scope);
                                 ASTNode::new(AST::OBJECT { class_name : name.clone(), scope: obj_scope}, node.einfo.clone())
                             } else {
                                 //expected constructor method to exist error

@@ -6,7 +6,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 fn main() {
-    std::env::set_var("RUST_BACKTRACE", "0");
+    std::env::set_var("RUST_BACKTRACE", "full");
 
     let args: Vec<String> = std::env::args().collect();
     

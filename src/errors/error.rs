@@ -118,7 +118,7 @@ impl ErrorStack {
             eprint!("{}","^".yellow().bold());
         }
         eprint!("\n(flag {})", format!("{:#?}", self.current_flag).yellow());
-        eprintln!();
+        eprintln!("{}","\n-----------------------------------------".yellow());
     }
     pub fn flag(&mut self, f: EFlags) {
         self.current_flag = f;

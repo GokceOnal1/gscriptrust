@@ -1,1 +1,0 @@
-import "entry.gsc" -> Math;

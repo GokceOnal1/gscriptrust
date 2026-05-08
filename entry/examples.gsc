@@ -147,7 +147,7 @@ while(guess != num) {
 assign primitive_int = _PRIMITIVE(5);
 assign primitive_string = _PRIMITIVE("hello");
 
-assign complex_string = "goodbye"
+assign complex_string = "goodbye";
 write(complex_string.length);
 write("tspmo".length);
 

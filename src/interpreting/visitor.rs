@@ -1171,7 +1171,16 @@ impl Visitor {
                     }
                     AST::STRING { .. } => match &property.kind {
                         AST::VAR { name: _ } => {
-                            println!("dot syntax implementation for a string");
+                            println!("property (not method) dot syntax implementation for a string (NOT IMPLEMENTED)");
+                            ASTNode::new_noop()
+                        },
+                        AST::FUNC_CALL{name, ..} => {
+                            match name.as_str() {
+                                "length" => {
+                                    return std_string_func_length(self, &obj);
+                                }
+                                _ => {}
+                            }
                             ASTNode::new_noop()
                         }
                         _ => ASTNode::new_noop(),

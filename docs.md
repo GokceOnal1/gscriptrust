@@ -34,15 +34,19 @@ To access members, use this syntax: ```a.method(); a.prop1;```
 - ```break``` Breaks out of a loop
 <br> More to come...
 
-## Standard Functions
+## Standard General Functions
 
-- ```ast_debug(args<AnyType>...)``` Prints out debug information about provided argument(s) in the form of its AST Node representation's fields
-- ```write(args<AnyType>...)``` Prints out provided arguments(s) to the standard output, generally the console
-- ```read()``` Prompts the user for a line from the standard input stream
-- ```type(arg1<AnyType>)``` Returns the type of arg1 as a String
-- ```to_int(arg1<String>)``` Converts arg1, a String, into its integer representation
-- ```to_float(arg1<String>)``` Converts arg2, a String, into its floating-point representation
-- ```random_int(arg1<Integer>, arg2<Integer>)``` Returns a random integer between arg1 and arg2, inclusive
+- ```ast_debug(args<AnyType>...) -> <String>``` Prints out debug information about provided argument(s) in the form of its AST Node representation's fields
+- ```write(args<AnyType>...) -> <NoOperation>``` Prints out provided arguments(s) to the standard output, generally the console
+- ```read() -> <AnyType>``` Prompts the user for a line from the standard input stream
+- ```type(arg1<AnyType>) -> <String>``` Returns the type of arg1 as a String
+- ```to_int(arg1<String>) -> <Integer>``` Converts arg1, a String, into its integer representation
+- ```to_float(arg1<String>) -> <Float>``` Converts arg2, a String, into its floating-point representation
+- ```random_int(arg1<Integer>, arg2<Integer>) -> <Integer>``` Returns a random integer between arg1 and arg2, inclusive
+
+## Standard String Functions
+
+- ```s<String>.length() -> <Integer>``` Returns the length of s as an integer (a count of chars, not bytes)
 
 ## Standard Errors
 

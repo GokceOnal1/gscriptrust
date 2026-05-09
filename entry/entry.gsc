@@ -1,1 +1,1 @@
-write([1,2,3].length);
+write("hello world".length());

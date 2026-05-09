@@ -106,10 +106,12 @@ impl<'a> Parser<'a> {
         None
     }
     pub fn parse_mono(&mut self) -> Option<ASTNode> {
+        //only check for dot if atom is not TokenType::ID
+        let atom: Option<ASTNode>;
         if let Some(tok) = self.curr_token {
             match tok.kind {
-                TokenType::INT(_) | TokenType::FLOAT(_) => { return self.parse_num(); }
-                TokenType::STRING(_) => { return self.parse_string(); }
+                TokenType::INT(_) | TokenType::FLOAT(_) => { atom = self.parse_num(); }
+                TokenType::STRING(_) => { atom = self.parse_string(); }
                 TokenType::ID(_) => { return self.parse_identifier(); }
                 TokenType::EOF => { return Some(ASTNode::new(AST::EOF, self.curr_token.unwrap().einfo.clone())); }
                 TokenType::LPR => {
@@ -119,28 +121,39 @@ impl<'a> Parser<'a> {
                         //err
                         self.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::SyntaxError, "Expected ')'", self.curr_token?.einfo.clone()));
                         self.errorstack.borrow().terminate_gs();
-                        None
+                        atom = None;
                     } else {
                         self.advance();
-                        ast
+                        atom = ast;
                     }
                 }
                 TokenType::LSQB => {
-                    return self.parse_list();
+                    atom = self.parse_list();
                 }
                 TokenType::MIN => {
                     self.advance();
                     // -- TODO --
                     //handle invalid negative number error
                     let ast_body = self.parse_mono().unwrap_or(ASTNode::new_noop());
-                    Some(ASTNode::new(AST::UNOP { op: TokenType::MIN, body: Box::new(ast_body)}, tok.einfo.clone()))
+                    atom = Some(ASTNode::new(AST::UNOP { op: TokenType::MIN, body: Box::new(ast_body)}, tok.einfo.clone()));
                 }
                 TokenType::NOT => {
                     self.advance();
                     let ast_body = self.parse_mono().unwrap_or(ASTNode::new_noop());
-                    Some(ASTNode::new(AST::UNOP { op: TokenType::NOT, body: Box::new(ast_body)}, tok.einfo.clone()))
+                    atom = Some(ASTNode::new(AST::UNOP { op: TokenType::NOT, body: Box::new(ast_body)}, tok.einfo.clone()));
                 }
-                _ => None
+                
+                _ => {atom = None;}
+            }
+            match atom {
+                None => atom,
+                Some(atom) => {
+                    if self.curr_token?.kind == TokenType::DOT {
+                        return self.parse_obj_index(atom);
+                    } else {
+                        Some(atom)
+                    }
+                }
             }
         } else {
             None
@@ -269,11 +282,13 @@ impl<'a> Parser<'a> {
     pub fn parse_variable(&mut self) -> Option<ASTNode> {
         self.advance();
         if self.curr_token?.kind == TokenType::LPR {
-            let preemptive =  self.parse_function_call()?;
+            let mut preemptive =  self.parse_function_call()?;
             if self.curr_token?.kind == TokenType::LSQB {
                 // parse list indices
-                return self.parse_index(preemptive);
-                
+                preemptive = self.parse_index(preemptive)?; 
+            }
+            if self.curr_token?.kind == TokenType::DOT {
+                preemptive = self.parse_obj_index(preemptive)?;
             }
             Some(preemptive)
         } else if self.curr_token?.kind == TokenType::EQL {
@@ -291,6 +306,8 @@ impl<'a> Parser<'a> {
                 //maybe it's var[1] = 5
                 if self.curr_token?.kind == TokenType::EQL {
                     return self.parse_list_reassign(list_ind_expr);
+                } else if self.curr_token?.kind == TokenType::DOT {
+                    return self.parse_obj_index(list_ind_expr);
                 } else {
                     return Some(list_ind_expr);
                 }

@@ -33,6 +33,16 @@ fn main() {
     let ast_compound = parser.parse_compound().unwrap();
 
     let mut visitor = Visitor::new(Rc::clone(&errorstack));
+
+    //visit GScript standard libraries (string, ..)
+    visitor.preload = true;
+    //string library
+    let string_gsc_root = gscriptrust::ast::ASTNode::new(gscriptrust::ast::AST::IMPORT{filename: "string.gsc".to_string(), object_name: String::new()}, ErrorInfo::new_empty()   );
+    visitor.visit_import(&string_gsc_root);
+
+    //end visit GScript standard libraries
+    visitor.preload = false;
+    
     visitor.visit(&ast_compound);
 
     let errorstack = visitor.errorstack;

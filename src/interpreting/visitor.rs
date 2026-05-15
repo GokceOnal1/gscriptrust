@@ -10,6 +10,7 @@ pub struct Visitor {
     current_scope: Rc<RefCell<Scope>>,
     pub errorstack: Rc<RefCell<ErrorStack>>,
     keywords: Vec<String>,
+    pub preload: bool,
 }
 impl Visitor {
     pub fn new(errorstack: Rc<RefCell<ErrorStack>>) -> Visitor {
@@ -33,6 +34,7 @@ impl Visitor {
             .iter()
             .map(|x| x.to_string())
             .collect(),
+            preload: false,
         }
     }
     pub fn visit(&mut self, node: &ASTNode) -> ASTNode {
@@ -592,7 +594,6 @@ impl Visitor {
                     "to_int" => return std_func_to_int(self, node, args),
                     "to_float" => return std_func_to_float(self, node, args),
                     "random_int" => return std_func_random_int(self, node, args),
-                    "length" => return std_func_length(self, node, args),
                     "replace" => return std_func_replace(self, node, args),
                     "_PRIMITIVE" => return std_func_PRIMITIVE(self, node, args),
                     _ => {}
@@ -1169,13 +1170,28 @@ impl Visitor {
                             }
                         }
                     }
-                    AST::STRING { .. } => match &property.kind {
-                        AST::VAR { name: _ } => {
-                            println!("property (not method) dot syntax implementation for a string (NOT IMPLEMENTED)");
-                            ASTNode::new_noop()
-                        },
-                        AST::FUNC_CALL{name, args} => {
-                            match name.as_str() {
+                    // AST::STRING { .. } => match &property.kind {
+                    //     AST::VAR { name: _ } => {
+                    //         println!("property (not method) dot syntax implementation for a string (NOT IMPLEMENTED)");
+                    //         ASTNode::new_noop()
+                    //     },
+                    //     AST::FUNC_CALL{name, args} => {
+                    //         match name.as_str() {
+                    //             "_length" => {
+                    //                 return std_string_func_length(self, &obj);
+                    //             }
+                    //             "_char" => {
+                    //                 return std_string_func_char(self, &obj, &args[0]);
+                    //             }
+                    //             _ => {}
+                    //         }
+                    //         ASTNode::new_noop()
+                    //     }
+                    //     _ => ASTNode::new_noop(),
+                    // },
+                    AST::STRING { .. } => {
+                        match &property.kind {
+                            AST::FUNC_CALL { name, args } => match name.as_str() {
                                 "_length" => {
                                     return std_string_func_length(self, &obj);
                                 }
@@ -1183,11 +1199,19 @@ impl Visitor {
                                     return std_string_func_char(self, &obj, &args[0]);
                                 }
                                 _ => {}
-                            }
-                            ASTNode::new_noop()
+                            },
+                            _ => {}
                         }
-                        _ => ASTNode::new_noop(),
-                    },
+                        let complex_string = self.wrap_string(&obj);
+                        let redispatch = ASTNode::new(
+                            AST::OBJECT_INDEX {
+                                object: Box::new(complex_string),
+                                property: property.clone(),
+                            },
+                            node.einfo.clone(),
+                        );
+                        return self.visit_obj_index(&redispatch);
+                    }
                     _ => {
                         //indexed identifier is not an object error
                         self.errorstack
@@ -1773,7 +1797,12 @@ impl Visitor {
                 filename,
                 object_name,
             } => {
-                if &format!("entry/{}", filename) == &node.einfo.file {
+                let file_prefix = if self.preload {
+                    "std"
+                } else {
+                    "entry"
+                };
+                if &format!("{}/{}", file_prefix, filename) == &node.einfo.file {
                     self.errorstack
                         .borrow_mut()
                         .errors
@@ -1786,13 +1815,17 @@ impl Visitor {
                     return ASTNode::new_noop();
                 }
                 let mut lexer = crate::parsing::lexer::Lexer::new(
-                    &format!("entry/{}", filename.clone()),
+                    &format!("{}/{}", file_prefix, filename.clone()),
                     Rc::clone(&self.errorstack),
                 );
                 lexer.lex();
                 let mut parser =
                     crate::parsing::parser::Parser::new(&lexer.tokens, Rc::clone(&self.errorstack));
                 let ast_compound = parser.parse_compound().unwrap();
+                if self.preload {
+                    self.visit(&ast_compound);
+                    return ASTNode::new_noop();
+                }
                 let starting_scope = self.current_scope.clone();
                 self.current_scope = Rc::new(RefCell::new(Scope::new(None)));
                 self.visit(&ast_compound);
@@ -1826,6 +1859,51 @@ impl Visitor {
                 ASTNode::new_noop()
             }
             _ => ASTNode::new_noop(),
+        }
+    }
+    ///converts primitive string to blueprint _string
+    pub fn wrap_string(&mut self, node: &ASTNode) -> ASTNode {
+        let blueprint = self
+            .current_scope
+            .borrow()
+            .resolve_blueprint("_string".to_string())
+            .unwrap();
+        match &blueprint.kind {
+            AST::CLASS {
+                properties,
+                methods,
+                ..
+            } => {
+                let _string_scope = Rc::new(RefCell::new(Scope::new(Some(Scope::get_root_scope(
+                    self.current_scope.clone(),
+                )))));
+                for (_name, prop) in properties {
+                    let _ = _string_scope.borrow_mut().add_var(prop);
+                }
+                let _ = _string_scope.borrow_mut().set_var(
+                    "_s".to_string(),
+                    &ASTNode::new(
+                        AST::VAR_DEF {
+                            name: "_s".to_string(),
+                            value: Box::new(node.clone()),
+                        },
+                        node.einfo.clone(),
+                    ),
+                );
+                for (_name, method) in methods {
+                    let _ = _string_scope.borrow_mut().add_func(method);
+                }
+                return ASTNode::new(
+                    AST::OBJECT {
+                        class_name: "_string".to_string(),
+                        scope: _string_scope,
+                    },
+                    node.einfo.clone(),
+                );
+            }
+            _ => {
+                return ASTNode::new_noop();
+            }
         }
     }
 

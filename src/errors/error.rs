@@ -84,6 +84,9 @@ impl ErrorInfo {
     pub fn new(file : String, linecontents : String, line : usize, col : usize, col_end : usize) -> ErrorInfo {
         ErrorInfo {file, linecontents, line, col, col_end }
     }
+    pub fn new_empty() -> ErrorInfo {
+        ErrorInfo {file: String::new(), linecontents: String::new(), line: 0, col: 0, col_end: 0}
+    }
     pub fn set_endln(&mut self) {
         self.col = self.linecontents.len();
         self.col_end = self.col + 1;

@@ -17,6 +17,6 @@ The primary focus going forward will be to implement methods and properties of p
 For example, ```string.indexOf( \ something \ )```.
 
 Looking ahead to the distant future, I want to write a graphics library for GScript (it will be based
-on the Piston game engine for Rust)
+on the SDL3 Rust bindings)
 # Other
 Nothing for now...

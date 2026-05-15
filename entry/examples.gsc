@@ -142,14 +142,10 @@ while(guess != num) {
 
 \ end guessing game example \
 \ ============================================================ \
-\ future of primitive types example \
+\ std string example \
 
-assign primitive_int = _PRIMITIVE(5);
-assign primitive_string = _PRIMITIVE("hello");
+write("hello".contains("e"));
+write("hello".index_of("l"));
 
-assign complex_string = "goodbye";
-write(complex_string.length);
-write("tspmo".length);
-
-\ end future of primitive types example \
+\ end std string example \
 \ ============================================================ \

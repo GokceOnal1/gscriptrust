@@ -125,6 +125,7 @@ pub fn std_func_random_int(v : &mut Visitor, node : &ASTNode, args : &Vec<ASTNod
         }
     }
 }
+#[deprecated]
 pub fn std_func_length(v : &mut Visitor, node : &ASTNode, args : &Vec<ASTNode>) -> ASTNode {
     if args.len() != 1 {
         v.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::FunctionError, format!("Function 'length' requires 1 argument(s), not {}", args.len()).as_str(), node.einfo.clone()));

@@ -1,1 +1,1 @@
-write("hello world".length());
+write("hello world"._length());

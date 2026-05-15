@@ -150,6 +150,8 @@ impl<'a> Parser<'a> {
                 Some(atom) => {
                     if self.curr_token?.kind == TokenType::DOT {
                         return self.parse_obj_index(atom);
+                    } else if self.curr_token?.kind == TokenType::LSQB {
+                        return self.parse_index(atom);
                     } else {
                         Some(atom)
                     }

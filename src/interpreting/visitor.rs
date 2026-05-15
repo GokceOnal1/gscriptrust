@@ -1174,10 +1174,13 @@ impl Visitor {
                             println!("property (not method) dot syntax implementation for a string (NOT IMPLEMENTED)");
                             ASTNode::new_noop()
                         },
-                        AST::FUNC_CALL{name, ..} => {
+                        AST::FUNC_CALL{name, args} => {
                             match name.as_str() {
-                                "length" => {
+                                "_length" => {
                                     return std_string_func_length(self, &obj);
+                                }
+                                "_char" => {
+                                    return std_string_func_char(self, &obj, &args[0]);
                                 }
                                 _ => {}
                             }

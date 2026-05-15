@@ -152,6 +152,20 @@ pub fn std_string_func_length(_v:&mut Visitor, s: &ASTNode) -> ASTNode {
         ASTNode::new(AST::INT{int_value: 0}, s.einfo.clone())
     }
 }
+//todo: error handling
+pub fn std_string_func_char(v : &mut Visitor, s: &ASTNode, n: &ASTNode) -> ASTNode {
+    let n = v.visit(n);
+    let mut i = 0;
+    if let AST::INT{int_value} = &n.kind {
+        i = *int_value;
+    }
+    if let AST::STRING{str_value: strval} = &s.kind {
+        let res = strval.chars().nth(i as usize).unwrap_or('\0').to_string();
+        ASTNode::new(AST::STRING{str_value: res}, n.einfo.clone())
+    } else {
+        ASTNode::new_noop()
+    }
+}
 pub fn std_func_replace(v : &mut Visitor, node : &ASTNode, args : &Vec<ASTNode>) -> ASTNode {
     if args.len() != 3 {
         v.errorstack.borrow_mut().errors.push(GError::new_from_tok(ETypes::FunctionError, format!("Function 'replace' requires 3 argument(s), not {}", args.len()).as_str(), node.einfo.clone()));

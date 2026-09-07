@@ -1118,9 +1118,28 @@ impl Visitor {
     pub fn visit_obj_index(&mut self, node: &ASTNode) -> ASTNode {
         match &node.kind {
             AST::OBJECT_INDEX { object, property } => {
+
+                let obj_scope = match &object.kind {
+                    AST::VAR {name} => {
+                        let ref_obj = self.current_scope.borrow().resolve_var(name.clone());
+                        ref_obj.and_then(|wref_obj| {
+                            let borrowed = wref_obj.borrow();
+                            if let AST::VAR_DEF{ value, ..} = &borrowed.kind {
+                                if let AST::OBJECT {scope, ..} = &value.kind {
+                                    return Some(Rc::clone(scope));
+                                }
+                            }
+                            None
+                        })
+                    },
+                    _=>None
+                };
+
+                //THIS DEEP CLONES THE OBJECT REGARDLESS!!
                 let obj = self.visit(object);
                 match &obj.kind {
                     AST::OBJECT { class_name, scope } => {
+                        let scope = obj_scope.as_ref().unwrap_or(scope);
                         //println!("{:#?}", scope);
                         match &property.kind {
                             AST::VAR { name } => {

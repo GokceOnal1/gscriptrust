@@ -1,4 +1,1 @@
-assign a = "test";
-write(a.length());
-a = "testtest";
-write(a.length());
+write([1,2,3].length());

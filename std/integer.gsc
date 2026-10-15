@@ -7,4 +7,6 @@ blueprint _integer {
     method add_one() {
         _i = _i + 1;
     };
+
+    
 };

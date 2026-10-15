@@ -39,7 +39,10 @@ fn main() {
     //string library
     let string_gsc_root = gscriptrust::ast::ASTNode::new(gscriptrust::ast::AST::IMPORT{filename: "string.gsc".to_string(), object_name: String::new()}, ErrorInfo::new_empty()   );
     visitor.visit_import(&string_gsc_root);
-
+    //list library
+    let list_gsc_root = gscriptrust::ast::ASTNode::new(gscriptrust::ast::AST::IMPORT{filename: "list.gsc".to_string(), object_name: String::new()}, ErrorInfo::new_empty()   );
+    visitor.visit_import(&list_gsc_root);
+    
     //end visit GScript standard libraries
     visitor.preload = false;
     

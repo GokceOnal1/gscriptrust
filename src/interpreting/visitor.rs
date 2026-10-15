@@ -915,13 +915,20 @@ impl Visitor {
                     self.current_scope = Rc::new(RefCell::new(Scope::new(Some(origin.clone()))));
                     let cond = self.visit(condition);
                     let cond_res = match cond.kind {
-                        AST::BOOL { bool_value } => bool_value,
+                        AST::BOOL { bool_value } => Some(bool_value),
                         _ => {
-                            return ASTNode::new_noop();
+                            None
                         } //invalid conditional expression error
                     };
-                    if !cond_res {
-                        break;
+                    match cond_res {
+                        Some(val) => {
+                            if !val {
+                                break;
+                            }
+                        }
+                        None => {
+                            break;
+                        }
                     }
                     let res = self.visit(body);
                     if let AST::RETURN { .. } = res.kind {
@@ -1221,10 +1228,30 @@ impl Visitor {
                             },
                             _ => {}
                         }
-                        let complex_string = self.wrap_string(&obj);
+                        let complex_string = self.wrap_primitive(&obj, "_string", "_s");
                         let redispatch = ASTNode::new(
                             AST::OBJECT_INDEX {
                                 object: Box::new(complex_string),
+                                property: property.clone(),
+                            },
+                            node.einfo.clone(),
+                        );
+                        return self.visit_obj_index(&redispatch);
+                    }
+                    AST::LIST{ .. } => {
+                        match &property.kind {
+                            AST::FUNC_CALL {name, ..} => match name.as_str() {
+                                "_length" => {
+                                    return std_list_func_length(self, &obj);
+                                }
+                                _ => {}
+                            }
+                            _ => {}
+                        }
+                        let complex_list = self.wrap_primitive(&obj, "_list", "_l");
+                        let redispatch = ASTNode::new(
+                            AST::OBJECT_INDEX {
+                                object: Box::new(complex_list),
                                 property: property.clone(),
                             },
                             node.einfo.clone(),
@@ -1880,42 +1907,42 @@ impl Visitor {
             _ => ASTNode::new_noop(),
         }
     }
-    ///converts primitive string to blueprint _string
-    pub fn wrap_string(&mut self, node: &ASTNode) -> ASTNode {
+    ///Wraps a primitive into the blueprint representation of that primitive
+    pub fn wrap_primitive(&mut self, node: &ASTNode, prim_name: &str, prop_name: &str) -> ASTNode {
         let blueprint = self
             .current_scope
             .borrow()
-            .resolve_blueprint("_string".to_string())
+            .resolve_blueprint(prim_name.to_string())
             .unwrap();
-        match &blueprint.kind {
+         match &blueprint.kind {
             AST::CLASS {
                 properties,
                 methods,
                 ..
             } => {
-                let _string_scope = Rc::new(RefCell::new(Scope::new(Some(Scope::get_root_scope(
+                let _prim_scope = Rc::new(RefCell::new(Scope::new(Some(Scope::get_root_scope(
                     self.current_scope.clone(),
                 )))));
                 for (_name, prop) in properties {
-                    let _ = _string_scope.borrow_mut().add_var(prop);
+                    let _ = _prim_scope.borrow_mut().add_var(prop);
                 }
-                let _ = _string_scope.borrow_mut().set_var(
-                    "_s".to_string(),
+                let _ = _prim_scope.borrow_mut().set_var(
+                    prop_name.to_string(),
                     &ASTNode::new(
                         AST::VAR_DEF {
-                            name: "_s".to_string(),
+                            name: prop_name.to_string(),
                             value: Box::new(node.clone()),
                         },
                         node.einfo.clone(),
                     ),
                 );
                 for (_name, method) in methods {
-                    let _ = _string_scope.borrow_mut().add_func(method);
+                    let _ = _prim_scope.borrow_mut().add_func(method);
                 }
                 return ASTNode::new(
                     AST::OBJECT {
-                        class_name: "_string".to_string(),
-                        scope: _string_scope,
+                        class_name: prim_name.to_string(),
+                        scope: _prim_scope,
                     },
                     node.einfo.clone(),
                 );

@@ -146,6 +146,13 @@ pub fn std_func_length(v : &mut Visitor, node : &ASTNode, args : &Vec<ASTNode>) 
         }
     }
 }
+pub fn std_list_func_length(_v:&mut Visitor, s: &ASTNode) -> ASTNode {
+    if let AST::LIST{contents} = &s.kind {
+        ASTNode::new(AST::INT{int_value: contents.len() as i32}, s.einfo.clone())
+    } else {
+        ASTNode::new(AST::INT{int_value: 0}, s.einfo.clone())
+    }
+}
 pub fn std_string_func_length(_v:&mut Visitor, s: &ASTNode) -> ASTNode {
     if let AST::STRING{str_value} = &s.kind {
         ASTNode::new(AST::INT{int_value: str_value.chars().count() as i32}, s.einfo.clone())

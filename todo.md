@@ -20,3 +20,5 @@ Right now, I am in the midst of wrapping strings and primitive types in blueprin
  - [ ] Work on integrating an SDL3 wrapper
  - [ ] Implement warning system with config file to enable/disable
  - [ ] Implement passing objects by reference
+
+- [ ] VSCODE SYNTAX HIGHLIGHTING!
